@@ -13,14 +13,14 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-class bound_t;
 class RTree;
 
 // bounding box representation
+template < typename PointType >
 class bound_t
 {
 public:
-  using point_type = int;
+  using point_type = PointType;
 
 protected:
   point_type _min, _max;
@@ -202,19 +202,17 @@ public:
   // data type
   using value_type = int;
 
-  // single scalar
-  using scalar_type = int;
+  // multiple scalar; N-dimension
+  using point_type = int;
+  using bound_type = bound_t<int>;
 
-  using node_type = node_t<bound_t,int>;
+  using node_type = node_t<bound_type,value_type>;
 
   // type for area
   using area_type = int;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
-  // multiple scalar; N-dimension
-  using point_type = int;
-  using bound_type = bound_t;
 
   // M
   constexpr static size_type MAX_ENTRIES = 8;
@@ -430,7 +428,7 @@ public:
       Repeat from QS2.
       */
       std::vector<std::pair<bound_type,node_type*>> entry1, entry2;
-      bound_t bound1, bound2;
+      bound_type bound1, bound2;
       
       {
         auto seeds = pick_seed( parent );
