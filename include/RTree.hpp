@@ -27,6 +27,9 @@ protected:
   point_type _min, _max;
 
 public:
+  bound_t()
+  {
+  }
   bound_t( point_type const& __min, point_type const& __max )
     : _min(__min),
       _max(__max)
@@ -81,7 +84,7 @@ public:
     return { ret_min, std::max( ret_min, std::min(max(),b.max()) ) };
   }
 };
-class node_t
+struct node_t
 {
 friend class RTree;
 public:
@@ -124,6 +127,22 @@ public:
     return _type == TYPE_DATA;
   }
 
+  auto& data()
+  {
+    return _data;
+  }
+  auto const& data() const
+  {
+    return _data;
+  }
+  auto& child()
+  {
+    return _child;
+  }
+  auto& child() const
+  {
+    return _child;
+  }
   auto size() const
   {
     return _child.size();
@@ -363,11 +382,14 @@ public:
       Repeat from QS2.
       */
       std::vector<std::pair<bound_type,node_type*>> entry1, entry2;
+      bound_t bound1, bound2;
       
       {
         auto seeds = pick_seed( parent );
         entry1.push_back( *seeds.first );
         entry2.push_back( *seeds.second );
+        bound1 = seeds.first->first;
+        bound2 = seeds.second->first;
         parent->_child.erase( seeds.second );
         parent->_child.erase( seeds.first );
       }
@@ -384,16 +406,34 @@ public:
           entry2.insert( entry2.end(), parent->begin(), parent->end() );
           parent->_child.clear();
         }else {
-          auto picked = pick_next( parent );
+          node_type::child_iterator picked = parent->end();
+          int picked_to = 0;
+          area_type maximum_difference = 0;
 
-          if( picked.second == 0 )
+          for( auto ci=parent->begin(); ci!=parent->end(); ++ci )
           {
-            entry1.push_back( *picked.first );
-          }else {
-            entry2.push_back( *picked.first );
+            area_type d1 = bound1.merged( ci->first ).area() - bound1.area();
+            area_type d2 = bound2.merged( ci->first ).area() - bound1.area();
+            const auto diff = std::abs(d1 - d2);
+
+            if( diff > maximum_difference )
+            {
+              picked = ci;
+              maximum_difference = diff;
+              picked_to = d1 < d2 ? 0 : 1;
+            }
           }
 
-          parent->_child.erase( picked.first );
+          if( picked_to == 0 )
+          {
+            entry1.push_back( *picked );
+            bound1 = bound1.merged( picked->first );
+          }else {
+            entry2.push_back( *picked );
+            bound2 = bound2.merged( picked->first );
+          }
+
+          parent->_child.erase( picked );
         }
       }
 
