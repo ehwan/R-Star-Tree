@@ -202,11 +202,12 @@ TEST( BoundTest, Intersection )
 
 TEST( RTreeTest, QuadraticSplit )
 {
-  er::node_t *root = new er::node_t;
+  using node_type = er::node_t<er::bound_t,int>;
+  node_type *root = new node_type;
 
   for( int i=1; i<=er::RTree::MAX_ENTRIES+1; ++i )
   {
-    er::node_t *data_node = new er::node_t;
+    node_type *data_node = new node_type;
     data_node->data() = i;
 
     root->add_child( er::bound_t(i,i+1), data_node );

@@ -14,7 +14,6 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 namespace eh { namespace rtree {
 
 class bound_t;
-class node_t;
 class RTree;
 
 // bounding box representation
@@ -86,44 +85,47 @@ public:
     return { ret_min, std::max( ret_min, std::min(max(),b.max()) ) };
   }
 };
-struct node_t
+
+template < typename BoundType, typename ValueType >
+class node_t
 {
 friend class RTree;
 public:
-  using bound_type = bound_t;
-
-  constexpr static int TYPE_NODE = 0;
-  constexpr static int TYPE_LEAF = 1;
-  constexpr static int TYPE_DATA = 2;
+  using bound_type = BoundType;
+  using value_type = ValueType;
 
 protected:
-  std::vector<std::pair<bound_t,node_t*>> _child;
+  std::vector<std::pair<bound_type,node_t*>> _child;
   node_t *_parent = nullptr;
-  int _data;
+  value_type _data;
 
 public:
-  using child_iterator = decltype(_child)::iterator;
-  using const_child_iterator = decltype(_child)::const_iterator;
+  using child_iterator = typename decltype(_child)::iterator;
+  using const_child_iterator = typename decltype(_child)::const_iterator;
 
   bool is_root() const
   {
     return _parent == nullptr;
   }
 
-  auto& data()
+  // user data
+  value_type& data()
   {
     return _data;
   }
-  auto const& data() const
+  // user data
+  value_type const& data() const
   {
     return _data;
   }
 
+  // parent node's pointer
   node_t *parent() const
   {
     return _parent;
   }
 
+  // this node's level; ( root = 0 )
   int level() const
   {
     int ret = 0;
@@ -135,34 +137,43 @@ public:
     }
     return ret-1;
   }
+
+  // add child node with bounding box
   void add_child( bound_type const& bound, node_t *node )
   {
     _child.emplace_back( bound, node );
   }
+
+  // child count
   auto size() const
   {
     return _child.size();
   }
+  // child iterator
   child_iterator begin()
   {
     return _child.begin();
   }
+  // child iterator
   const_child_iterator begin() const
   {
     return _child.begin();
   }
+  // child iterator
   child_iterator end()
   {
     return _child.end();
   }
+  // child iterator
   const_child_iterator end() const
   {
     return _child.end();
   }
 
-  bound_t bound() const
+  // union bouinding box of children
+  bound_type bound() const
   {
-    bound_t merged;
+    bound_type merged;
     for( auto &c : _child )
     {
       merged = merged.merged( c.first );
@@ -170,6 +181,7 @@ public:
     return merged;
   }
 
+  // delete its child recursively
   void delete_recursive()
   {
     for( auto &c : _child )
@@ -193,7 +205,7 @@ public:
   // single scalar
   using scalar_type = int;
 
-  using node_type = node_t;
+  using node_type = node_t<bound_t,int>;
 
   // type for area
   using area_type = int;
@@ -351,7 +363,7 @@ public:
 
   struct split_quadratic_t
   {
-    std::pair<node_t::child_iterator,node_t::child_iterator> pick_seed( node_type *node ) const
+    std::pair<node_type::child_iterator,node_type::child_iterator> pick_seed( node_type *node ) const
     {
       /*
       PS1. [Calculate inefficiency of grouping entries together.]
