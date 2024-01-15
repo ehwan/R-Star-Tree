@@ -97,8 +97,6 @@ public:
   constexpr static int TYPE_DATA = 2;
 
 protected:
-  // normal, leaf or entry
-  int _type;
   std::vector<std::pair<bound_t,node_t*>> _child;
   node_t *_parent = nullptr;
   int _data;
@@ -107,26 +105,9 @@ public:
   using child_iterator = decltype(_child)::iterator;
   using const_child_iterator = decltype(_child)::const_iterator;
 
-  node_t( int type )
-    : _type( type )
-  {
-  }
-
   bool is_root() const
   {
     return _parent == nullptr;
-  }
-  bool is_node() const
-  {
-    return _type == TYPE_NODE;
-  }
-  bool is_leaf() const
-  {
-    return _type == TYPE_LEAF;
-  }
-  bool is_data() const
-  {
-    return _type == TYPE_DATA;
   }
 
   auto& data()
@@ -137,6 +118,7 @@ public:
   {
     return _data;
   }
+  /*
   auto& child()
   {
     return _child;
@@ -144,6 +126,17 @@ public:
   auto& child() const
   {
     return _child;
+  }
+  */
+
+  node_t *parent() const
+  {
+    return _parent;
+  }
+
+  void add_child( bound_type const& bound, node_t *node )
+  {
+    _child.emplace_back( bound, node );
   }
   auto size() const
   {
@@ -217,10 +210,36 @@ public:
 
 protected:
   node_type *_root = nullptr;
+  int _leaf_level = 0;
 
 public:
 
-  void insert( bound_type const& bound, node_type const& node )
+  // add node to parent
+  void insert( bound_type const& bound, node_type *node, node_type *parent )
+  {
+    parent->add_child( bound, node );
+    node_type *pair = nullptr;
+
+    if( parent->size() > MAX_ENTRIES )
+    {
+      pair = split( parent );
+    }
+    adjust_tree( parent );
+    if( pair )
+    {
+      if( parent == _root )
+      {
+        node_type *new_root = new node_type;
+        new_root->add_child( parent->bound(), parent );
+        new_root->add_child( pair->bound(), pair );
+        _root = new_root;
+        ++_leaf_level;
+      }else {
+        insert( pair->bound(), pair, parent->parent() );
+      }
+    }
+  }
+  void insert( bound_type const& bound, node_type *data_node )
   {
     /*
     I1. [Find position for new record.]
@@ -236,6 +255,9 @@ public:
     I4. [Grow tree taller.]
     If node split propagation caused the root to split, create a new root whose children are the two resulting nodes.
     */
+
+    node_type *chosen = choose_leaf( bound );
+    insert( bound, data_node, chosen );
   }
 
   node_type *choose_leaf( bound_type const& bound )
@@ -256,7 +278,8 @@ public:
     */
 
     node_type *n = _root;
-    while( n->is_leaf() == false )
+    int level = 0;
+    while( level < _leaf_level )
     {
       area_type min_area_enlarge = MAX_AREA;
       node_type::child_iterator chosen = n->end();
@@ -281,46 +304,42 @@ public:
     return n;
   }
 
-  void adjust_tree( node_type *N, bound_type const& new_bound, node_type *NN=nullptr )
+  void adjust_tree( node_type *N )
   {
-  /*
-  AT1. [Initialize.] 
-  Set N=L. If L was split previously, set NN to be the resulting second node.
+    /*
+    AT1. [Initialize.] 
+    Set N=L. If L was split previously, set NN to be the resulting second node.
 
-  AT2. [Check if done.]
-  If N is the root, stop.
+    AT2. [Check if done.]
+    If N is the root, stop.
 
-  AT3. [Adjust covering rectangle in parent entry.]
-  Let P be the parent node of N, and let E_N be N's entry in P.
-  Adjust En.I so that it tightly encloses all entry rectangles in N.
+    AT3. [Adjust covering rectangle in parent entry.]
+    Let P be the parent node of N, and let E_N be N's entry in P.
+    Adjust En.I so that it tightly encloses all entry rectangles in N.
 
-  AT4. [Propagate node split upward.]
-  If N has a partner NN resulting from an earlier split, create a new entry E_NN with E_NN.p pointing to NN and E_NN.I
-  enclosing all rectangles in NN. 
-  Add E_nn to P if there is room. 
-  Otherwise, invoke SplitNode to produce P and PP containing E_NN and all P’s old entries.
+    AT4. [Propagate node split upward.]
+    If N has a partner NN resulting from an earlier split, create a new entry E_NN with E_NN.p pointing to NN and E_NN.I
+    enclosing all rectangles in NN. 
+    Add E_nn to P if there is room. 
+    Otherwise, invoke SplitNode to produce P and PP containing E_NN and all P’s old entries.
 
-  AT5. [Move up to next level.]
-  Set N=P and set NN=PP if a split occurred.
-  Repeat from AT2.
-  */
-  /*
+    AT5. [Move up to next level.]
+    Set N=P and set NN=PP if a split occurred.
+    Repeat from AT2.
+    */
     while( 1 )
     {
-      if( N->is_root() ){ break; }
+      if( N->parent() == nullptr ){ break; }
 
-      auto *parent = N->_parent;
-      node_type::child_iterator entry_on_parent = parent->end();
-      for( auto ci=parent->begin(); ci!=parent->end(); ++ci )
+      for( auto &c : *N->parent() )
       {
-        if( &ci->second == N )
+        if( c.second == N )
         {
-          entry_on_parent = ci;
-          break;
+          c.first = N->bound();
         }
       }
+      N = N->parent();
     }
-    */
   }
 
   struct split_quadratic_t
@@ -371,18 +390,6 @@ public:
 
       return { n1, n2 };
     }
-    std::pair<node_type::child_iterator,int> pick_next( node_type *node )
-    {
-      /*
-      PN1. [Determine cost of putting each entry in each group.]
-      For each entry E not yet in a group, 
-      calculate d1 = the area increase required in the covering rectangle of Group 1 to include E.I. 
-      Calculate d2  similarly for Group 2.
-
-      PN2. [Find entry with greatest preference for one group.]
-      Choose any entry with the maximum difference between d1 and d2.
-      */
-    }
 
     node_type* operator()( node_type *parent )
     {
@@ -418,12 +425,22 @@ public:
 
       while( parent->_child.empty() == false )
       {
-        const auto left = parent->_child.size();
-        if( entry1.size() + left == MIN_ENTRIES )
+        /*
+        PN1. [Determine cost of putting each entry in each group.]
+        For each entry E not yet in a group, 
+        calculate d1 = the area increase required in the covering rectangle of Group 1 to include E.I. 
+        Calculate d2  similarly for Group 2.
+
+        PN2. [Find entry with greatest preference for one group.]
+        Choose any entry with the maximum difference between d1 and d2.
+        */
+
+        const auto old_node_count = parent->_child.size();
+        if( entry1.size() + old_node_count == MIN_ENTRIES )
         {
           entry1.insert( entry1.end(), parent->begin(), parent->end() );
           parent->_child.clear();
-        }else if( entry2.size() + left == MIN_ENTRIES )
+        }else if( entry2.size() + old_node_count == MIN_ENTRIES )
         {
           entry2.insert( entry2.end(), parent->begin(), parent->end() );
           parent->_child.clear();
@@ -460,7 +477,7 @@ public:
       }
 
       parent->_child.assign( entry1.begin(), entry2.end() );
-      node_type *node_pair = new node_type( parent->_type );
+      node_type *node_pair = new node_type;
       node_pair->_child.assign( entry2.begin(), entry2.end() );
 
       return node_pair;

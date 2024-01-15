@@ -202,17 +202,18 @@ TEST( BoundTest, Intersection )
 
 TEST( RTreeTest, QuadraticSplit )
 {
-  er::node_t *root = new er::node_t( er::node_t::TYPE_LEAF );
+  er::node_t *root = new er::node_t;
 
   for( int i=1; i<=er::RTree::MAX_ENTRIES+1; ++i )
   {
-    er::node_t *data_node = new er::node_t( er::node_t::TYPE_DATA );
+    er::node_t *data_node = new er::node_t;
     data_node->data() = i;
 
-    root->child().emplace_back( er::bound_t(i,i+1), data_node );
+    root->add_child( er::bound_t(i,i+1), data_node );
   }
 
   auto *pair = er::RTree::split_quadratic_t{}( root );
+  ASSERT_TRUE( pair );
 
   EXPECT_GE( root->size(), er::RTree::MIN_ENTRIES );
   EXPECT_LE( root->size(), er::RTree::MAX_ENTRIES );
@@ -220,11 +221,11 @@ TEST( RTreeTest, QuadraticSplit )
   EXPECT_LE( pair->size(), er::RTree::MAX_ENTRIES );
   EXPECT_EQ( root->size()+pair->size(), er::RTree::MAX_ENTRIES+1 );
 
+
   std::map<int,int> child_exist_map;
   for( auto c : *root )
   {
     EXPECT_TRUE( c.second );
-    EXPECT_TRUE( c.second->is_data() );
 
     child_exist_map[ c.second->data() ] = 10000;
   }
