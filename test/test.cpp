@@ -12,14 +12,14 @@ using dbound_type = er::bound_t<double>;
 TEST( BoundTest, Initialize )
 {
   ibound_type bound( 10, 20 );
-  EXPECT_EQ( bound.min(), 10 );
-  EXPECT_EQ( bound.max(), 20 );
+  EXPECT_EQ( bound.min_bound(), 10 );
+  EXPECT_EQ( bound.max_bound(), 20 );
 }
 TEST( BoundTest, Initialize_f )
 {
   fbound_type bound( 10.0f, 20.0f );
-  EXPECT_FLOAT_EQ( bound.min(), 10.0f );
-  EXPECT_FLOAT_EQ( bound.max(), 20.0f );
+  EXPECT_FLOAT_EQ( bound.min_bound(), 10.0f );
+  EXPECT_FLOAT_EQ( bound.max_bound(), 20.0f );
 }
 TEST( BoundTest, IsInside )
 {
@@ -207,54 +207,54 @@ TEST( BoundTest, Merge )
   ibound_type right( 6, 11 );
 
   ibound_type merged = left.merged(right);
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 11 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 11 );
 
   merged = right.merged( left );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 11 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 11 );
 
   merged = left.merged( 3 );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 3 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 3 );
   merged = left.merged( 0 );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 3 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 3 );
 
   merged = left.merged( -1 );
-  EXPECT_EQ( merged.min(), -1 );
-  EXPECT_EQ( merged.max(), 3 );
+  EXPECT_EQ( merged.min_bound(), -1 );
+  EXPECT_EQ( merged.max_bound(), 3 );
 
   merged = left.merged( 5 );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 5 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 5 );
 
   left = ibound_type( 0, 6 );
   right = ibound_type( 3, 10 );
   merged = left.merged( right );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 10 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 10 );
   merged = right.merged( left );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 10 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 10 );
 
 
   left = ibound_type( 0, 10 );
   right = ibound_type( 3, 6 );
   merged = left.merged( right );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 10 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 10 );
   merged = right.merged( left );
-  EXPECT_EQ( merged.min(), 0 );
-  EXPECT_EQ( merged.max(), 10 );
+  EXPECT_EQ( merged.min_bound(), 0 );
+  EXPECT_EQ( merged.max_bound(), 10 );
 
   left = ibound_type();
   merged = left.merged( right );
-  EXPECT_EQ( merged.min(), right.min() );
-  EXPECT_EQ( merged.max(), right.max() );
+  EXPECT_EQ( merged.min_bound(), right.min_bound() );
+  EXPECT_EQ( merged.max_bound(), right.max_bound() );
   merged = right.merged( left );
-  EXPECT_EQ( merged.min(), right.min() );
-  EXPECT_EQ( merged.max(), right.max() );
+  EXPECT_EQ( merged.min_bound(), right.min_bound() );
+  EXPECT_EQ( merged.max_bound(), right.max_bound() );
 }
 
 TEST( BoundTest, Merge_f )
@@ -263,54 +263,54 @@ TEST( BoundTest, Merge_f )
   fbound_type right( 6, 11 );
 
   fbound_type merged = left.merged(right);
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 11 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 11 );
 
   merged = right.merged( left );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 11 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 11 );
 
   merged = left.merged( 3 );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 3 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 3 );
   merged = left.merged( 0 );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 3 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 3 );
 
   merged = left.merged( -1 );
-  EXPECT_FLOAT_EQ( merged.min(), -1 );
-  EXPECT_FLOAT_EQ( merged.max(), 3 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), -1 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 3 );
 
   merged = left.merged( 5 );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 5 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 5 );
 
   left = fbound_type( 0, 6 );
   right = fbound_type( 3, 10 );
   merged = left.merged( right );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 10 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 10 );
   merged = right.merged( left );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 10 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 10 );
 
 
   left = fbound_type( 0, 10 );
   right = fbound_type( 3, 6 );
   merged = left.merged( right );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 10 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 10 );
   merged = right.merged( left );
-  EXPECT_FLOAT_EQ( merged.min(), 0 );
-  EXPECT_FLOAT_EQ( merged.max(), 10 );
+  EXPECT_FLOAT_EQ( merged.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( merged.max_bound(), 10 );
 
   left = fbound_type();
   merged = left.merged( right );
-  EXPECT_FLOAT_EQ( merged.min(), right.min() );
-  EXPECT_FLOAT_EQ( merged.max(), right.max() );
+  EXPECT_FLOAT_EQ( merged.min_bound(), right.min_bound() );
+  EXPECT_FLOAT_EQ( merged.max_bound(), right.max_bound() );
   merged = right.merged( left );
-  EXPECT_FLOAT_EQ( merged.min(), right.min() );
-  EXPECT_FLOAT_EQ( merged.max(), right.max() );
+  EXPECT_FLOAT_EQ( merged.min_bound(), right.min_bound() );
+  EXPECT_FLOAT_EQ( merged.max_bound(), right.max_bound() );
 }
 
 TEST( BoundTest, Area )
@@ -319,7 +319,7 @@ TEST( BoundTest, Area )
   EXPECT_EQ( bound.area(), 0 );
 
   bound = ibound_type( 10, 15 );
-  EXPECT_EQ( bound.area(), bound.max()-bound.min() );
+  EXPECT_EQ( bound.area(), bound.max_bound()-bound.min_bound() );
 }
 TEST( BoundTest, Area_f )
 {
@@ -327,7 +327,7 @@ TEST( BoundTest, Area_f )
   EXPECT_FLOAT_EQ( bound.area(), 0 );
 
   bound = fbound_type( 10, 15 );
-  EXPECT_FLOAT_EQ( bound.area(), bound.max()-bound.min() );
+  EXPECT_FLOAT_EQ( bound.area(), bound.max_bound()-bound.min_bound() );
 }
 
 TEST( BoundTest, Intersection )
@@ -336,8 +336,8 @@ TEST( BoundTest, Intersection )
   ibound_type right( 10, 15 );
 
   auto inter = left.intersection( left );
-  EXPECT_EQ( inter.min(), 0 );
-  EXPECT_EQ( inter.max(), 5 );
+  EXPECT_EQ( inter.min_bound(), 0 );
+  EXPECT_EQ( inter.max_bound(), 5 );
 
   inter = left.intersection( right );
   EXPECT_EQ( inter.area(), 0 );
@@ -346,20 +346,20 @@ TEST( BoundTest, Intersection )
 
   right = ibound_type( 3, 10 );
   inter = left.intersection( right );
-  EXPECT_EQ( inter.min(), 3 );
-  EXPECT_EQ( inter.max(), 5 );
+  EXPECT_EQ( inter.min_bound(), 3 );
+  EXPECT_EQ( inter.max_bound(), 5 );
   inter = right.intersection( left );
-  EXPECT_EQ( inter.min(), 3 );
-  EXPECT_EQ( inter.max(), 5 );
+  EXPECT_EQ( inter.min_bound(), 3 );
+  EXPECT_EQ( inter.max_bound(), 5 );
 
   left = ibound_type( 0, 10 );
   right = ibound_type( 3, 6 );
   inter = left.intersection( right );
-  EXPECT_EQ( inter.min(), right.min() );
-  EXPECT_EQ( inter.max(), right.max() );
+  EXPECT_EQ( inter.min_bound(), right.min_bound() );
+  EXPECT_EQ( inter.max_bound(), right.max_bound() );
   inter = right.intersection( left );
-  EXPECT_EQ( inter.min(), right.min() );
-  EXPECT_EQ( inter.max(), right.max() );
+  EXPECT_EQ( inter.min_bound(), right.min_bound() );
+  EXPECT_EQ( inter.max_bound(), right.max_bound() );
 }
 
 TEST( BoundTest, Intersection_f )
@@ -368,8 +368,8 @@ TEST( BoundTest, Intersection_f )
   fbound_type right( 10, 15 );
 
   auto inter = left.intersection( left );
-  EXPECT_FLOAT_EQ( inter.min(), 0 );
-  EXPECT_FLOAT_EQ( inter.max(), 5 );
+  EXPECT_FLOAT_EQ( inter.min_bound(), 0 );
+  EXPECT_FLOAT_EQ( inter.max_bound(), 5 );
 
   inter = left.intersection( right );
   EXPECT_FLOAT_EQ( inter.area(), 0 );
@@ -378,20 +378,20 @@ TEST( BoundTest, Intersection_f )
 
   right = fbound_type( 3, 10 );
   inter = left.intersection( right );
-  EXPECT_FLOAT_EQ( inter.min(), 3 );
-  EXPECT_FLOAT_EQ( inter.max(), 5 );
+  EXPECT_FLOAT_EQ( inter.min_bound(), 3 );
+  EXPECT_FLOAT_EQ( inter.max_bound(), 5 );
   inter = right.intersection( left );
-  EXPECT_FLOAT_EQ( inter.min(), 3 );
-  EXPECT_FLOAT_EQ( inter.max(), 5 );
+  EXPECT_FLOAT_EQ( inter.min_bound(), 3 );
+  EXPECT_FLOAT_EQ( inter.max_bound(), 5 );
 
   left = fbound_type( 0, 10 );
   right = fbound_type( 3, 6 );
   inter = left.intersection( right );
-  EXPECT_FLOAT_EQ( inter.min(), right.min() );
-  EXPECT_FLOAT_EQ( inter.max(), right.max() );
+  EXPECT_FLOAT_EQ( inter.min_bound(), right.min_bound() );
+  EXPECT_FLOAT_EQ( inter.max_bound(), right.max_bound() );
   inter = right.intersection( left );
-  EXPECT_FLOAT_EQ( inter.min(), right.min() );
-  EXPECT_FLOAT_EQ( inter.max(), right.max() );
+  EXPECT_FLOAT_EQ( inter.min_bound(), right.min_bound() );
+  EXPECT_FLOAT_EQ( inter.max_bound(), right.max_bound() );
 }
 
 TEST( RTreeTest, QuadraticSplit )

@@ -21,6 +21,7 @@ class bound_t
 {
 public:
   using point_type = PointType;
+  using area_type = point_type;
 
 protected:
   point_type _min, _max;
@@ -38,51 +39,57 @@ public:
   }
 
 
-  inline auto const& min() const
+  inline auto const& min_bound() const
   {
     return _min;
   }
-  inline auto const& max() const
+  inline auto const& max_bound() const
   {
     return _max;
   }
 
   // area of this bounding box
-  auto area() const
+  area_type area() const
   {
-    return ( max() - min() );
+    return ( max_bound() - min_bound() );
   }
-  bool is_inside( point_type const& p ) const
+  template < typename _PointType >
+  bool is_inside( _PointType const& p ) const
   {
-    return (min() <= p) && (p < max());
+    return (min_bound() <= p) && (p < max_bound());
   }
-  bool is_inside( bound_t const& b ) const
+  template < typename _PointType >
+  bool is_inside( bound_t<_PointType> const& b ) const
   {
-    return (min() <= b.min()) && (b.max() <= max());
+    return (min_bound() <= b.min_bound()) && (b.max_bound() <= max_bound());
   }
-  bool is_overlap( point_type const& p ) const
+  template < typename _PointType >
+  bool is_overlap( _PointType const& p ) const
   {
     return is_inside( p );
   }
-  bool is_overlap( bound_t const& b ) const
+  template < typename _PointType >
+  bool is_overlap( bound_t<_PointType> const& b ) const
   {
-    if( !(b.min() < max()) ){ return false; }
-    if( !(min() < b.max()) ){ return false; }
+    if( !(b.min_bound() < max_bound()) ){ return false; }
+    if( !(min_bound() < b.max_bound()) ){ return false; }
     return true;
   }
 
   bound_t merged( bound_t const& b ) const
   {
-    return { std::min(_min,b.min()), std::max(_max,b.max()) };
+    return { std::min(_min,b.min_bound()), std::max(_max,b.max_bound()) };
   }
+
   bound_t merged( point_type const& p ) const
   {
     return { std::min(_min,p), std::max(_max,p) };
   }
+
   bound_t intersection( bound_t const& b ) const
   {
-    const auto ret_min = std::max( min(), b.min() );
-    return { ret_min, std::max( ret_min, std::min(max(),b.max()) ) };
+    const auto ret_min = std::max( min_bound(), b.min_bound() );
+    return { ret_min, std::max( ret_min, std::min(max_bound(),b.max_bound()) ) };
   }
 };
 
@@ -209,7 +216,7 @@ public:
   using node_type = node_t<bound_type,value_type>;
 
   // type for area
-  using area_type = int;
+  using area_type = typename bound_type::area_type;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
