@@ -158,6 +158,38 @@ TEST( BoundTest, Area )
   EXPECT_EQ( bound.area(), bound.max()-bound.min() );
 }
 
+TEST( BoundTest, Intersection )
+{
+  er::bound_t left( 0, 5 );
+  er::bound_t right( 10, 15 );
+
+  auto inter = left.intersection( left );
+  EXPECT_EQ( inter.min(), 0 );
+  EXPECT_EQ( inter.max(), 5 );
+
+  inter = left.intersection( right );
+  EXPECT_EQ( inter.area(), 0 );
+  inter = right.intersection( left );
+  EXPECT_EQ( inter.area(), 0 );
+
+  right = er::bound_t( 3, 10 );
+  inter = left.intersection( right );
+  EXPECT_EQ( inter.min(), 3 );
+  EXPECT_EQ( inter.max(), 5 );
+  inter = right.intersection( left );
+  EXPECT_EQ( inter.min(), 3 );
+  EXPECT_EQ( inter.max(), 5 );
+
+  left = er::bound_t( 0, 10 );
+  right = er::bound_t( 3, 6 );
+  inter = left.intersection( right );
+  EXPECT_EQ( inter.min(), right.min() );
+  EXPECT_EQ( inter.max(), right.max() );
+  inter = right.intersection( left );
+  EXPECT_EQ( inter.min(), right.min() );
+  EXPECT_EQ( inter.max(), right.max() );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );

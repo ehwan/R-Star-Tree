@@ -75,6 +75,11 @@ public:
   {
     return { std::min(_min,p), std::max(_max,p) };
   }
+  bound_t intersection( bound_t const& b ) const
+  {
+    const auto ret_min = std::max( min(), b.min() );
+    return { ret_min, std::max( ret_min, std::min(max(),b.max()) ) };
+  }
 };
 class node_t
 {
