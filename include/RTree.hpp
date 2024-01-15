@@ -13,8 +13,6 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-class RTree;
-
 // bounding box representation
 template < typename PointType >
 class bound_t
@@ -93,127 +91,126 @@ public:
   }
 };
 
+
+
 template < typename BoundType, typename ValueType >
-class node_t
-{
-friend class RTree;
-public:
-  using bound_type = BoundType;
-  using value_type = ValueType;
-
-protected:
-  std::vector<std::pair<bound_type,node_t*>> _child;
-  node_t *_parent = nullptr;
-  value_type _data;
-
-public:
-  using child_iterator = typename decltype(_child)::iterator;
-  using const_child_iterator = typename decltype(_child)::const_iterator;
-
-  bool is_root() const
-  {
-    return _parent == nullptr;
-  }
-
-  // user data
-  value_type& data()
-  {
-    return _data;
-  }
-  // user data
-  value_type const& data() const
-  {
-    return _data;
-  }
-
-  // parent node's pointer
-  node_t *parent() const
-  {
-    return _parent;
-  }
-
-  // this node's level; ( root = 0 )
-  int level() const
-  {
-    int ret = 0;
-    node_t const *n = this;
-    while( n )
-    {
-      ++ret;
-      n = n->_parent;
-    }
-    return ret-1;
-  }
-
-  // add child node with bounding box
-  void add_child( bound_type const& bound, node_t *node )
-  {
-    _child.emplace_back( bound, node );
-  }
-
-  // child count
-  auto size() const
-  {
-    return _child.size();
-  }
-  // child iterator
-  child_iterator begin()
-  {
-    return _child.begin();
-  }
-  // child iterator
-  const_child_iterator begin() const
-  {
-    return _child.begin();
-  }
-  // child iterator
-  child_iterator end()
-  {
-    return _child.end();
-  }
-  // child iterator
-  const_child_iterator end() const
-  {
-    return _child.end();
-  }
-
-  // union bouinding box of children
-  bound_type bound() const
-  {
-    bound_type merged;
-    for( auto &c : _child )
-    {
-      merged = merged.merged( c.first );
-    }
-    return merged;
-  }
-
-  // delete its child recursively
-  void delete_recursive()
-  {
-    for( auto &c : _child )
-    {
-      c.second->delete_recursive();
-      delete c.second;
-    }
-    _child.clear();
-  }
-};
-
-
 class RTree
 {
 public:
   using size_type = unsigned int;
 
   // data type
-  using value_type = int;
+  using value_type = ValueType;
 
   // multiple scalar; N-dimension
-  using point_type = int;
-  using bound_type = bound_t<int>;
+  using bound_type = BoundType;
+  using point_type = typename bound_type::point_type;
 
-  using node_type = node_t<bound_type,value_type>;
+  class node_type
+  {
+    friend class RTree;
+  public:
+    using bound_type = BoundType;
+    using value_type = ValueType;
+
+  protected:
+    std::vector<std::pair<bound_type,node_type*>> _child;
+    node_type *_parent = nullptr;
+    value_type _data;
+
+  public:
+    using child_iterator = typename decltype(_child)::iterator;
+    using const_child_iterator = typename decltype(_child)::const_iterator;
+
+    bool is_root() const
+    {
+      return _parent == nullptr;
+    }
+
+    // user data
+    value_type& data()
+    {
+      return _data;
+    }
+    // user data
+    value_type const& data() const
+    {
+      return _data;
+    }
+
+    // parent node's pointer
+    node_type *parent() const
+    {
+      return _parent;
+    }
+
+    // this node's level; ( root = 0 )
+    int level() const
+    {
+      int ret = 0;
+      node_type const *n = this;
+      while( n )
+      {
+        ++ret;
+        n = n->_parent;
+      }
+      return ret-1;
+    }
+
+    // add child node with bounding box
+    void add_child( bound_type const& bound, node_type *node )
+    {
+      _child.emplace_back( bound, node );
+    }
+
+    // child count
+    auto size() const
+    {
+      return _child.size();
+    }
+    // child iterator
+    child_iterator begin()
+    {
+      return _child.begin();
+    }
+    // child iterator
+    const_child_iterator begin() const
+    {
+      return _child.begin();
+    }
+    // child iterator
+    child_iterator end()
+    {
+      return _child.end();
+    }
+    // child iterator
+    const_child_iterator end() const
+    {
+      return _child.end();
+    }
+
+    // union bouinding box of children
+    bound_type bound() const
+    {
+      bound_type merged;
+      for( auto &c : _child )
+      {
+        merged = merged.merged( c.first );
+      }
+      return merged;
+    }
+
+    // delete its child recursively
+    void delete_recursive()
+    {
+      for( auto &c : _child )
+      {
+        c.second->delete_recursive();
+        delete c.second;
+      }
+      _child.clear();
+    }
+  };
 
   // type for area
   using area_type = typename bound_type::area_type;
@@ -306,7 +303,7 @@ public:
     while( level < _leaf_level )
     {
       area_type min_area_enlarge = MAX_AREA;
-      node_type::child_iterator chosen = n->end();
+      typename node_type::child_iterator chosen = n->end();
 
       for( auto ci=n->begin(); ci!=n->end(); ++ci )
       {
@@ -368,7 +365,7 @@ public:
 
   struct split_quadratic_t
   {
-    std::pair<node_type::child_iterator,node_type::child_iterator> pick_seed( node_type *node ) const
+    std::pair<typename node_type::child_iterator,typename node_type::child_iterator> pick_seed( node_type *node ) const
     {
       /*
       PS1. [Calculate inefficiency of grouping entries together.]
@@ -378,7 +375,7 @@ public:
       PS2. [Choose the most wasteful pair.]
       Choose the pair with the largest d.
       */
-      node_type::child_iterator n1 = node->end(), n2;
+      typename node_type::child_iterator n1 = node->end(), n2;
       area_type max_wasted_area = LOWEST_AREA;
 
       // choose two nodes that would waste the most area if both were put in the same group
@@ -469,7 +466,7 @@ public:
           entry2.insert( entry2.end(), parent->begin(), parent->end() );
           parent->_child.clear();
         }else {
-          node_type::child_iterator picked = parent->end();
+          typename node_type::child_iterator picked = parent->end();
           int picked_to = 0;
           area_type maximum_difference = LOWEST_AREA;
 
@@ -508,10 +505,12 @@ public:
     }
   };
 
-  // 'parent' contains M+1 nodes;
+  // 'parent' contains MAX_ENTRIES+1 nodes;
   // split into two nodes
+  // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
   node_type* split( node_type *parent )
   {
+    // @TODO another split scheme
     split_quadratic_t spliter;
     return spliter( parent );
   }

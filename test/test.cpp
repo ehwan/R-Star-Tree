@@ -396,33 +396,34 @@ TEST( BoundTest, Intersection_f )
 
 TEST( RTreeTest, QuadraticSplit )
 {
-  using node_type = er::node_t<ibound_type,int>;
+  using rtree_type = er::RTree<ibound_type,int>;
+  using node_type = rtree_type::node_type;
   node_type *root = new node_type;
 
-  for( int i=1; i<=er::RTree::MAX_ENTRIES+1; ++i )
+  for( int i=1; i<=rtree_type::MAX_ENTRIES+1; ++i )
   {
     node_type *data_node = new node_type;
     data_node->data() = i;
 
     root->add_child( ibound_type(i,i+1), data_node );
   }
-  ASSERT_EQ( root->size(), er::RTree::MAX_ENTRIES+1 );
+  ASSERT_EQ( root->size(), rtree_type::MAX_ENTRIES+1 );
 
-  auto spliter = er::RTree::split_quadratic_t{};
+  auto spliter = rtree_type::split_quadratic_t{};
   auto [a, b] = spliter.pick_seed( root );
   ASSERT_GE( a, root->begin() );
   ASSERT_LT( a, root->end() );
   ASSERT_GE( b, root->begin() );
   ASSERT_LT( b, root->end() );
 
-  auto *pair = er::RTree::split_quadratic_t{}( root );
+  auto *pair = rtree_type::split_quadratic_t{}( root );
   ASSERT_TRUE( pair );
 
-  EXPECT_GE( root->size(), er::RTree::MIN_ENTRIES );
-  EXPECT_LE( root->size(), er::RTree::MAX_ENTRIES );
-  EXPECT_GE( pair->size(), er::RTree::MIN_ENTRIES );
-  EXPECT_LE( pair->size(), er::RTree::MAX_ENTRIES );
-  EXPECT_EQ( root->size()+pair->size(), er::RTree::MAX_ENTRIES+1 );
+  EXPECT_GE( root->size(), rtree_type::MIN_ENTRIES );
+  EXPECT_LE( root->size(), rtree_type::MAX_ENTRIES );
+  EXPECT_GE( pair->size(), rtree_type::MIN_ENTRIES );
+  EXPECT_LE( pair->size(), rtree_type::MAX_ENTRIES );
+  EXPECT_EQ( root->size()+pair->size(), rtree_type::MAX_ENTRIES+1 );
 
 
   std::map<int,int> child_exist_map;
@@ -438,8 +439,8 @@ TEST( RTreeTest, QuadraticSplit )
 
     child_exist_map[ c.second->data() ] = 10000;
   }
-  EXPECT_EQ( child_exist_map.size(), er::RTree::MAX_ENTRIES+1 );
-  for( int i=1; i<=er::RTree::MAX_ENTRIES+1; ++i )
+  EXPECT_EQ( child_exist_map.size(), rtree_type::MAX_ENTRIES+1 );
+  for( int i=1; i<=rtree_type::MAX_ENTRIES+1; ++i )
   {
     EXPECT_EQ( child_exist_map[i], 10000 );
   }
