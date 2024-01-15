@@ -282,12 +282,19 @@ public:
     */
   }
 
-#if 0
   struct split_quadratic_t
   {
     static std::pair<node_t::child_iterator,node_t::child_iterator> peek_seed( node_type *node )
     {
-      node_type *n1 = nullptr, *n2 = nullptr;
+      /*
+      PS1. [Calculate inefficiency of grouping entries together.]
+      For each pair of entries E1 and E2, compose a rectangle J including E1.I and E2.I. 
+      Calculate d = area(J) - area(E1.I) - area(E2.I)
+
+      PS2. [Choose the most wasteful pair.]
+      Choose the pair with the largest d.
+      */
+      node_type::child_iterator n1 = node->end(), n2;
       area_type max_wasted_area = 0;
 
       // choose two nodes that would waste the most area if both were put in the same group
@@ -295,22 +302,33 @@ public:
       {
         for( auto cj=ci+1; cj!=node->end(); ++cj )
         {
-          auto union_area = ci->first.merged( cj->first ).area();
-          const area_type wasted_area = union_area - ci->first.area() - cj->first.area();
+          const auto J = ci->first.merged( cj->first );
+          const area_type wasted_area = J.area() - ci->first.area() - cj->first.area();
 
           if( wasted_area > max_wasted_area )
           {
             max_wasted_area = wasted_area;
-            n1 = ci->second;
-            n2 = cj->second;
+            n1 = ci;
+            n2 = cj;
+          }
+          // if same wasted area, choose pair with small intersection area
+          else if( wasted_area == max_wasted_area )
+          {
+            if( ci->first.intersection(cj->first).area() < n1->first.intersection(n2->first).area() )
+            {
+              n1 = ci;
+              n2 = cj;
+            }
           }
         }
       }
-      if( n1 == nullptr )
+      if( n1 == node->end() )
       {
-        n1 = parent->begin()->second;
-        n2 = (parent->begin()+1)->second;
+        n1 = node->begin();
+        n2 = node->begin()+1;
       }
+
+      return { n1, n2 };
     }
   };
 
@@ -319,7 +337,6 @@ public:
   std::pair<node_type*,node_type*> split_quadratic( node_type *parent )
   {
   }
-  #endif
 
 
 };
