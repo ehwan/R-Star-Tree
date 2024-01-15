@@ -101,6 +101,54 @@ TEST( BoundTest, IsOverlap )
   EXPECT_FALSE( bound.is_overlap(point_out3) );
 }
 
+TEST( BoundTest, Merge )
+{
+  er::bound_t left( 0, 3 );
+  er::bound_t right( 6, 11 );
+
+  er::bound_t merged = left.merged(right);
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 11 );
+
+  merged = right.merged( left );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 11 );
+
+  merged = left.merged( 3 );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 3 );
+  merged = left.merged( 0 );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 3 );
+
+  merged = left.merged( -1 );
+  EXPECT_EQ( merged.min(), -1 );
+  EXPECT_EQ( merged.max(), 3 );
+
+  merged = left.merged( 5 );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 5 );
+
+  left = er::bound_t( 0, 6 );
+  right = er::bound_t( 3, 10 );
+  merged = left.merged( right );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 10 );
+  merged = right.merged( left );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 10 );
+
+
+  left = er::bound_t( 0, 10 );
+  right = er::bound_t( 3, 6 );
+  merged = left.merged( right );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 10 );
+  merged = right.merged( left );
+  EXPECT_EQ( merged.min(), 0 );
+  EXPECT_EQ( merged.max(), 10 );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
