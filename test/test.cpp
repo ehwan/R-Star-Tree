@@ -149,6 +149,15 @@ TEST( BoundTest, Merge )
   EXPECT_EQ( merged.max(), 10 );
 }
 
+TEST( BoundTest, Area )
+{
+  er::bound_t bound( 5, 5 );
+  EXPECT_EQ( bound.area(), 0 );
+
+  bound = er::bound_t( 10, 15 );
+  EXPECT_EQ( bound.area(), bound.max()-bound.min() );
+}
+
 int main( int argc, char **argv )
 {
   testing::InitGoogleTest( &argc, argv );
