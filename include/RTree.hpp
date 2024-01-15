@@ -28,6 +28,8 @@ protected:
 
 public:
   bound_t()
+    : _min( std::numeric_limits<point_type>::max() ),
+      _max( std::numeric_limits<point_type>::lowest() )
   {
   }
   bound_t( point_type const& __min, point_type const& __max )
@@ -162,6 +164,26 @@ public:
   const_child_iterator end() const
   {
     return _child.end();
+  }
+
+  bound_t bound() const
+  {
+    bound_t merged;
+    for( auto &c : _child )
+    {
+      merged = merged.merged( c.first );
+    }
+    return merged;
+  }
+
+  void delete_recursive()
+  {
+    for( auto &c : _child )
+    {
+      c.second->delete_recursive();
+      delete c.second;
+    }
+    _child.clear();
   }
 };
 

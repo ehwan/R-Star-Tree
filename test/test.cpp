@@ -149,6 +149,14 @@ TEST( BoundTest, Merge )
   merged = right.merged( left );
   EXPECT_EQ( merged.min(), 0 );
   EXPECT_EQ( merged.max(), 10 );
+
+  left = er::bound_t();
+  merged = left.merged( right );
+  EXPECT_EQ( merged.min(), right.min() );
+  EXPECT_EQ( merged.max(), right.max() );
+  merged = right.merged( left );
+  EXPECT_EQ( merged.min(), right.min() );
+  EXPECT_EQ( merged.max(), right.max() );
 }
 
 TEST( BoundTest, Area )
@@ -224,6 +232,11 @@ TEST( RTreeTest, QuadraticSplit )
   {
     EXPECT_EQ( child_exist_map[i], 10000 );
   }
+
+  root->delete_recursive();
+  pair->delete_recursive();
+  delete root;
+  delete pair;
 }
 
 int main( int argc, char **argv )
