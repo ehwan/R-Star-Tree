@@ -284,7 +284,7 @@ public:
 
   struct split_quadratic_t
   {
-    static std::pair<node_t::child_iterator,node_t::child_iterator> peek_seed( node_type *node )
+    std::pair<node_t::child_iterator,node_t::child_iterator> pick_seed( node_type *node ) const
     {
       /*
       PS1. [Calculate inefficiency of grouping entries together.]
@@ -330,12 +330,87 @@ public:
 
       return { n1, n2 };
     }
+    std::pair<node_type::child_iterator,int> pick_next( node_type *node )
+    {
+      /*
+      PN1. [Determine cost of putting each entry in each group.]
+      For each entry E not yet in a group, 
+      calculate d1 = the area increase required in the covering rectangle of Group 1 to include E.I. 
+      Calculate d2  similarly for Group 2.
+
+      PN2. [Find entry with greatest preference for one group.]
+      Choose any entry with the maximum difference between d1 and d2.
+      */
+    }
+
+    node_type* operator()( node_type *parent )
+    {
+      /*
+      QS1. [Pick first entry for each group.]
+      Apply Algorithm PickSeeds to choose two entries to be the first elements of the groups. 
+      Assign each to a group.
+
+      QS2. [Check if done.]
+      If all entries have been assigned, stop. 
+      If one group has so few entries that all the rest must
+      be assigned to it in order for it to have the minimum number m, assign them and stop.
+
+      QS3. [Select entry to assign.]
+      Invoke Algorithm PickNext to choose the next entry to assign. 
+      Add it to the group whose covering rectangle will have to be enlarged least to accommodate it.
+      Resolve ties by adding the entry to the group with smaller area,
+      then to the one with fewer entries, then to either. 
+      Repeat from QS2.
+      */
+      std::vector<std::pair<bound_type,node_type*>> entry1, entry2;
+      
+      {
+        auto seeds = pick_seed( parent );
+        entry1.push_back( *seeds.first );
+        entry2.push_back( *seeds.second );
+        parent->_child.erase( seeds.second );
+        parent->_child.erase( seeds.first );
+      }
+
+      while( parent->_child.empty() == false )
+      {
+        const auto left = parent->_child.size();
+        if( entry1.size() + left == MIN_ENTRIES )
+        {
+          entry1.insert( entry1.end(), parent->begin(), parent->end() );
+          parent->_child.clear();
+        }else if( entry2.size() + left == MIN_ENTRIES )
+        {
+          entry2.insert( entry2.end(), parent->begin(), parent->end() );
+          parent->_child.clear();
+        }else {
+          auto picked = pick_next( parent );
+
+          if( picked.second == 0 )
+          {
+            entry1.push_back( *picked.first );
+          }else {
+            entry2.push_back( *picked.first );
+          }
+
+          parent->_child.erase( picked.first );
+        }
+      }
+
+      parent->_child.assign( entry1.begin(), entry2.end() );
+      node_type *node_pair = new node_type( parent->_type );
+      node_pair->_child.assign( entry2.begin(), entry2.end() );
+
+      return node_pair;
+    }
   };
 
   // 'parent' contains M+1 nodes;
   // split into two nodes
-  std::pair<node_type*,node_type*> split_quadratic( node_type *parent )
+  node_type* split( node_type *parent )
   {
+    split_quadratic_t spliter;
+    return spliter( parent );
   }
 
 
