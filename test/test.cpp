@@ -211,6 +211,14 @@ TEST( RTreeTest, QuadraticSplit )
 
     root->add_child( er::bound_t(i,i+1), data_node );
   }
+  ASSERT_EQ( root->size(), er::RTree::MAX_ENTRIES+1 );
+
+  auto spliter = er::RTree::split_quadratic_t{};
+  auto [a, b] = spliter.pick_seed( root );
+  ASSERT_GE( a, root->begin() );
+  ASSERT_LT( a, root->end() );
+  ASSERT_GE( b, root->begin() );
+  ASSERT_LT( b, root->end() );
 
   auto *pair = er::RTree::split_quadratic_t{}( root );
   ASSERT_TRUE( pair );
@@ -229,6 +237,13 @@ TEST( RTreeTest, QuadraticSplit )
 
     child_exist_map[ c.second->data() ] = 10000;
   }
+  for( auto c : *pair )
+  {
+    EXPECT_TRUE( c.second );
+
+    child_exist_map[ c.second->data() ] = 10000;
+  }
+  EXPECT_EQ( child_exist_map.size(), er::RTree::MAX_ENTRIES+1 );
   for( int i=1; i<=er::RTree::MAX_ENTRIES+1; ++i )
   {
     EXPECT_EQ( child_exist_map[i], 10000 );

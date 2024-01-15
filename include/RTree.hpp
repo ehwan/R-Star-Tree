@@ -118,22 +118,23 @@ public:
   {
     return _data;
   }
-  /*
-  auto& child()
-  {
-    return _child;
-  }
-  auto& child() const
-  {
-    return _child;
-  }
-  */
 
   node_t *parent() const
   {
     return _parent;
   }
 
+  int level() const
+  {
+    int ret = 0;
+    node_t const *n = this;
+    while( n )
+    {
+      ++ret;
+      n = n->_parent;
+    }
+    return ret-1;
+  }
   void add_child( bound_type const& bound, node_t *node )
   {
     _child.emplace_back( bound, node );
@@ -197,6 +198,7 @@ public:
   // type for area
   using area_type = int;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
+  constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
   // multiple scalar; N-dimension
   using point_type = int;
@@ -213,6 +215,11 @@ protected:
   int _leaf_level = 0;
 
 public:
+
+  int leaves_level() const
+  {
+    return _leaf_level;
+  }
 
   // add node to parent
   void insert( bound_type const& bound, node_type *node, node_type *parent )
@@ -355,7 +362,7 @@ public:
       Choose the pair with the largest d.
       */
       node_type::child_iterator n1 = node->end(), n2;
-      area_type max_wasted_area = 0;
+      area_type max_wasted_area = LOWEST_AREA;
 
       // choose two nodes that would waste the most area if both were put in the same group
       for( auto ci=node->begin(); ci!=node->end()-1; ++ci )
@@ -435,7 +442,7 @@ public:
         Choose any entry with the maximum difference between d1 and d2.
         */
 
-        const auto old_node_count = parent->_child.size();
+        const auto old_node_count = parent->size();
         if( entry1.size() + old_node_count == MIN_ENTRIES )
         {
           entry1.insert( entry1.end(), parent->begin(), parent->end() );
@@ -447,12 +454,12 @@ public:
         }else {
           node_type::child_iterator picked = parent->end();
           int picked_to = 0;
-          area_type maximum_difference = 0;
+          area_type maximum_difference = LOWEST_AREA;
 
           for( auto ci=parent->begin(); ci!=parent->end(); ++ci )
           {
             area_type d1 = bound1.merged( ci->first ).area() - bound1.area();
-            area_type d2 = bound2.merged( ci->first ).area() - bound1.area();
+            area_type d2 = bound2.merged( ci->first ).area() - bound2.area();
             const auto diff = std::abs(d1 - d2);
 
             if( diff > maximum_difference )
@@ -476,7 +483,7 @@ public:
         }
       }
 
-      parent->_child.assign( entry1.begin(), entry2.end() );
+      parent->_child.assign( entry1.begin(), entry1.end() );
       node_type *node_pair = new node_type;
       node_pair->_child.assign( entry2.begin(), entry2.end() );
 
