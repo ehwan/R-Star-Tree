@@ -8,7 +8,9 @@ set( CMAKE_CXX_COMPILER /usr/bin/clang++ )
 project( test CXX )
 find_package( GTest )
 add_executable( test
-  test/test.cpp
+  test/bound.cpp
+  test/rtree.cpp
+  test/main.cpp
 )
 set_target_properties( test PROPERTIES
   CXX_STANDARD 17
