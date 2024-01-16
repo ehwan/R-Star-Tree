@@ -17,11 +17,6 @@ protected:
   point_type _min, _max;
 
 public:
-  bound_t()
-    : _min( std::numeric_limits<point_type>::max() ),
-      _max( std::numeric_limits<point_type>::lowest() )
-  {
-  }
   bound_t( point_type const& __min, point_type const& __max )
     : _min(__min),
       _max(__max)
@@ -69,11 +64,6 @@ public:
   bound_t merged( bound_t const& b ) const
   {
     return { std::min(_min,b.min_bound()), std::max(_max,b.max_bound()) };
-  }
-
-  bound_t merged( point_type const& p ) const
-  {
-    return { std::min(_min,p), std::max(_max,p) };
   }
 
   bound_t intersection( bound_t const& b ) const

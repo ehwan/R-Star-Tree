@@ -125,10 +125,10 @@ public:
     // union bouinding box of children
     bound_type bound() const
     {
-      bound_type merged;
-      for( auto &c : _child )
+      bound_type merged = _child[0].first;
+      for( int i=1; i<_child.size(); ++i )
       {
-        merged = merged.merged( c.first );
+        merged = merged.merged( _child[i].first );
       }
       return merged;
     }
@@ -365,7 +365,24 @@ public:
     }
   }
 
-  struct split_quadratic_t
+  // split nodes 'as-is'
+  struct just_split_t
+  {
+    node_type *operator()( node_type *node ) const
+    {
+      node_type *new_node = new node_type;
+      for( int i=node->size()-MIN_ENTRIES; i<node->size(); ++i )
+      {
+        new_node->add_child( node->_child[i].first, node->_child[i].second );
+      }
+      node->_child.erase( node->_child.end()-MIN_ENTRIES, node->_child.end() );
+
+      return new_node;
+    }
+  };
+
+  // quadratic split algorithm
+  struct quadratic_split_t
   {
     std::pair<typename node_type::child_iterator,typename node_type::child_iterator> pick_seed( node_type *node ) const
     {
@@ -434,7 +451,7 @@ public:
       Repeat from QS2.
       */
       std::vector<std::pair<bound_type,node_type*>> entry1, entry2;
-      bound_type bound1, bound2;
+      bound_type bound1={0,0}, bound2={0,0};
       
       {
         auto seeds = pick_seed( parent );
@@ -499,13 +516,21 @@ public:
         }
       }
 
-      parent->_child.assign( entry1.begin(), entry1.end() );
+      for( auto &e1 : entry1 )
+      {
+        parent->add_child( e1.first, e1.second );
+      }
       node_type *node_pair = new node_type;
-      node_pair->_child.assign( entry2.begin(), entry2.end() );
+      for( auto &e2 : entry2 )
+      {
+        node_pair->add_child( e2.first, e2.second );
+      }
 
       return node_pair;
     }
   };
+
+  using splitter_t = quadratic_split_t;
 
   // 'parent' contains MAX_ENTRIES+1 nodes;
   // split into two nodes
@@ -513,7 +538,7 @@ public:
   node_type* split( node_type *parent )
   {
     // @TODO another split scheme
-    split_quadratic_t spliter;
+    splitter_t spliter;
     return spliter( parent );
   }
 
@@ -541,11 +566,26 @@ protected:
     }
     return false;
   }
+  template < typename Functor >
+  void iterate_node_wrapper( Functor functor, node_type *node ) const
+  {
+    functor(node);
+    for( auto &c : *node )
+    {
+      iterate_node_wrapper( functor, c.second );
+    }
+  }
 public:
   template < typename Functor >
   void iterate( Functor functor ) const
   {
     iterate_wrapper( functor, _root, 0 );
+  }
+
+  template < typename Functor >
+  void iterate_node( Functor functor ) const
+  {
+    iterate_node_wrapper( functor, _root );
   }
 };
 
