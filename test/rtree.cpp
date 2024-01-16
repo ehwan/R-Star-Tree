@@ -139,4 +139,7 @@ TEST( RTreeTest, double_RTree_range_test )
     );
   }
 
+  // @TODO
+  // RTree multi-dimension
+
 }

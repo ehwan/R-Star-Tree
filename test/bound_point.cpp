@@ -59,5 +59,5 @@ TEST( BoundPTest, HitTest )
   EXPECT_TRUE( bound0.is_overlap(inside5) );
   EXPECT_TRUE( bound0.is_overlap(inside6) );
 
-  // TODO more...
+  // @TODO more...
 }
