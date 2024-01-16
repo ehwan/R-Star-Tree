@@ -450,17 +450,14 @@ public:
       Repeat from QS2.
       */
       std::vector<std::pair<bound_type,node_type*>> entry1, entry2;
-      bound_type bound1={0,0}, bound2={0,0};
       
-      {
-        auto seeds = pick_seed( parent );
-        entry1.push_back( *seeds.first );
-        entry2.push_back( *seeds.second );
-        bound1 = seeds.first->first;
-        bound2 = seeds.second->first;
-        parent->_child.erase( seeds.second );
-        parent->_child.erase( seeds.first );
-      }
+      auto seeds = pick_seed( parent );
+      entry1.push_back( *seeds.first );
+      entry2.push_back( *seeds.second );
+      bound_type bound1 = seeds.first->first;
+      bound_type bound2 = seeds.second->first;
+      parent->_child.erase( seeds.second );
+      parent->_child.erase( seeds.first );
 
       while( parent->_child.empty() == false )
       {
