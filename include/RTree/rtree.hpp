@@ -174,6 +174,15 @@ protected:
     _leaf_level = 0;
   }
 
+  void init_root()
+  {
+    if( _root == nullptr )
+    {
+      _root = new node_type;
+      _leaf_level = 0;
+    }
+  }
+
 public:
   RTree()
   {
@@ -208,14 +217,6 @@ public:
     return *this;
   }
 
-  void init_root()
-  {
-    if( _root == nullptr )
-    {
-      _root = new node_type;
-      _leaf_level = 0;
-    }
-  }
 
   int leaves_level() const
   {
@@ -223,7 +224,7 @@ public:
   }
 
   // add node to parent
-  void insert( bound_type const& bound, node_type *node, node_type *parent )
+  void insert_node( bound_type const& bound, node_type *node, node_type *parent )
   {
     parent->add_child( bound, node );
     node_type *pair = nullptr;
@@ -243,11 +244,11 @@ public:
         _root = new_root;
         ++_leaf_level;
       }else {
-        insert( pair->bound(), pair, parent->parent() );
+        insert_node( pair->bound(), pair, parent->parent() );
       }
     }
   }
-  void insert( bound_type const& bound, node_type *data_node )
+  void insert_node( bound_type const& bound, node_type *data_node )
   {
     /*
     I1. [Find position for new record.]
@@ -265,7 +266,14 @@ public:
     */
 
     node_type *chosen = choose_leaf( bound );
-    insert( bound, data_node, chosen );
+    insert_node( bound, data_node, chosen );
+  }
+
+  void insert( bound_type const& bound, value_type val )
+  {
+    node_type *new_data_node = new node_type;
+    new_data_node->_data = std::move(val);
+    insert_node( bound, new_data_node );
   }
 
   node_type *choose_leaf( bound_type const& bound )
@@ -502,7 +510,36 @@ public:
     return spliter( parent );
   }
 
-
+protected:
+  template < typename Functor >
+  bool iterate_wrapper( Functor functor, node_type *node, int level ) const
+  {
+    if( level == _leaf_level )
+    {
+      for( auto &c : *node )
+      {
+        if( functor(c.first, c.second->data()) )
+        {
+          return true;
+        }
+      }
+    }else {
+      for( auto &c : *node )
+      {
+        if( iterate_wrapper( functor, c.second, level+1 ) )
+        {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+public:
+  template < typename Functor >
+  void iterate( Functor functor ) const
+  {
+    iterate_wrapper( functor, _root, 0 );
+  }
 };
 
 

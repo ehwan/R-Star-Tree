@@ -2,6 +2,8 @@
 
 #include <RTree.hpp>
 #include <map>
+#include <vector>
+#include <algorithm>
 
 namespace er = eh::rtree;
 
@@ -60,4 +62,64 @@ TEST( RTreeTest, QuadraticSplit )
   pair->delete_recursive();
   delete root;
   delete pair;
+}
+
+TEST( RTreeTest, Insert )
+{
+  using rtree_type = er::RTree<er::bound_t<int>,int>;
+  using bound_type = rtree_type::bound_type;
+  using node_type = rtree_type::node_type;
+
+  rtree_type rtree;
+  auto rtree_to_sorted_vec = []( rtree_type const& rtree )->std::vector<int>
+  {
+    std::vector<int> ret;
+    rtree.iterate(
+      [&ret]( bound_type bound, int val )
+      {
+        ret.push_back( val );
+        return false;
+      }
+    );
+    std::sort( ret.begin(), ret.end() );
+    return ret;
+  };
+
+  auto vector_expect = []( std::vector<int> const& v1, std::vector<int> const& v2 )
+  {
+    EXPECT_EQ( v1.size(), v2.size() );
+    for( int i=0; i<v1.size(); ++i )
+    {
+      EXPECT_EQ( v1[i], v2[i] ) << "v1[i] vs v2[i] with i: " << i;
+    }
+  };
+
+  vector_expect( rtree_to_sorted_vec(rtree), {} );
+
+  rtree.insert( {0,1}, 5 );
+  vector_expect( rtree_to_sorted_vec(rtree), {5} );
+
+  rtree.insert( {2,3}, 10 );
+  vector_expect( rtree_to_sorted_vec(rtree), {5,10} );
+
+  rtree.insert( {3,4}, 0);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,5,10} );
+
+  rtree.insert( {3,4}, 0);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,5,10} );
+
+  rtree.insert( {3,4}, 0);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10} );
+
+  rtree.insert( {3,4}, 20);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10,20} );
+
+  rtree.insert( {3,4}, 20);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10,20,20} );
+
+  rtree.insert( {3,4}, 20);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10,20,20, 20} );
+
+  rtree.insert( {3,4}, 30);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10,20,20,20, 30} );
 }
