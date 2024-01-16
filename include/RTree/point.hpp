@@ -128,6 +128,7 @@ point_t<ScalarType,Dim> min( point_t<ScalarType,Dim> const& lhs, point_t<ScalarT
   {
     ret[i] = std::min( lhs[i], rhs[i] );
   }
+  return ret;
 }
 template < typename ScalarType, unsigned int Dim >
 point_t<ScalarType,Dim> max( point_t<ScalarType,Dim> const& lhs, point_t<ScalarType,Dim> const& rhs )
@@ -137,6 +138,7 @@ point_t<ScalarType,Dim> max( point_t<ScalarType,Dim> const& lhs, point_t<ScalarT
   {
     ret[i] = std::max( lhs[i], rhs[i] );
   }
+  return ret;
 }
 
 }} // namespace eh, rtree
