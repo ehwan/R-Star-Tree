@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <RTree.hpp>
 
+// one-dimensional bound_type with arithmetic point type
 using ibound_type = eh::rtree::bound_t<int>;
 using fbound_type = eh::rtree::bound_t<float>;
 using dbound_type = eh::rtree::bound_t<double>;

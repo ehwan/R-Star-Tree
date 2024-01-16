@@ -10,6 +10,7 @@ find_package( GTest )
 add_executable( test
   test/point.cpp
   test/bound.cpp
+  test/bound_point.cpp
   test/rtree.cpp
   test/main.cpp
 )
