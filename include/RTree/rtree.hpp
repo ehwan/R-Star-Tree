@@ -93,6 +93,7 @@ public:
     void add_child( bound_type const& bound, node_type *node )
     {
       _child.emplace_back( bound, node );
+      node->_parent = this;
     }
 
     // child count
@@ -217,6 +218,11 @@ public:
     return *this;
   }
 
+  node_type *root_node() const
+  {
+    return _root;
+  }
+
 
   int leaves_level() const
   {
@@ -316,6 +322,7 @@ public:
         }
       }
       n = chosen->second;
+      ++level;
     }
     return n;
   }

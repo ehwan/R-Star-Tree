@@ -122,4 +122,7 @@ TEST( RTreeTest, Insert )
 
   rtree.insert( {3,4}, 30);
   vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10,20,20,20, 30} );
+
+  rtree.insert( {3,4}, 30);
+  vector_expect( rtree_to_sorted_vec(rtree), {0,0,0,5,10,20,20,20, 30, 30} );
 }
