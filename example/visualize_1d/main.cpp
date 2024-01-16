@@ -15,7 +15,7 @@ int main( int argc, char **argv )
 
   // normal distribution random generator
   // mu = 0, sigma = 5
-  std::normal_distribution<float> normal_distribute( 0, 5 );
+  std::normal_distribution<double> normal_distribute( 0, 5 );
 
   if( argc < 2 )
   {
