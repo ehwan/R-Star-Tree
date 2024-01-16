@@ -19,3 +19,14 @@ target_link_libraries( test PUBLIC GTest::gtest )
 target_include_directories( test PUBLIC
   ./include
 )
+
+project( visualize_1d CXX )
+add_executable( visualize_1d
+  example/visualize_1d/main.cpp
+)
+set_target_properties( visualize_1d PROPERTIES
+  CXX_STANDARD 17
+)
+target_include_directories( visualize_1d PUBLIC
+  ./include
+)
