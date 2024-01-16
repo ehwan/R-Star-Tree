@@ -15,4 +15,4 @@ C++ template RTree header only library.
 
 The x-axis illustrates different levels within the R-tree, and the y-axis displays the size of bounding boxes (in one dimension) for each node.
 
-On the far right, there are purple dots representing input points (N = 300). These points are generated from a uniform distribution with a mean ($\mu$) of 0 and a standard deviation ($\sigma$) of 5.
+On the far right, there are purple dots representing input points (N = 300). These points are generated from a normal distribution with a mean ($\mu$) of 0 and a standard deviation ($\sigma$) of 5.
