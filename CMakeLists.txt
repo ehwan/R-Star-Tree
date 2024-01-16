@@ -8,6 +8,7 @@ set( CMAKE_CXX_COMPILER /usr/bin/clang++ )
 project( test CXX )
 find_package( GTest )
 add_executable( test
+  test/point.cpp
   test/bound.cpp
   test/rtree.cpp
   test/main.cpp
