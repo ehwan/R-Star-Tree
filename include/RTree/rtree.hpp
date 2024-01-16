@@ -8,6 +8,7 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 #include <limits>
 #include <vector>
 #include <utility>
+#include <algorithm>
 
 #include "global.hpp"
 
@@ -24,7 +25,18 @@ public:
 
   // multiple scalar; N-dimension
   using bound_type = BoundType;
+
   using point_type = typename bound_type::point_type;
+
+  // type for area
+  using area_type = typename bound_type::area_type;
+  constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
+  constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
+
+  // M
+  constexpr static size_type MAX_ENTRIES = 8;
+  // m <= M/2
+  constexpr static size_type MIN_ENTRIES = 4;
 
   class node_type
   {
@@ -128,27 +140,82 @@ public:
         c.second->delete_recursive();
         delete c.second;
       }
-      _child.clear();
+    }
+    node_type *clone_recursive() const
+    {
+      node_type *new_node = new node_type;
+      new_node->_data = _data;
+      new_node->_child.reserve( _child.size() );
+      for( auto &c : *this )
+      {
+        new_node->_child.emplace_back( c.first, c.second->clone_recursive() );
+        new_node->_child.back().second->parent = new_node;
+      }
+      return new_node;
     }
   };
-
-  // type for area
-  using area_type = typename bound_type::area_type;
-  constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
-  constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
-
-
-  // M
-  constexpr static size_type MAX_ENTRIES = 8;
-  // m <= M/2
-  constexpr static size_type MIN_ENTRIES = 4;
 
 
 protected:
   node_type *_root = nullptr;
   int _leaf_level = 0;
 
+  void delete_if()
+  {
+    if( _root )
+    {
+      _root->delete_recursive();
+      delete _root;
+    }
+  }
+  void set_null()
+  {
+    _root = nullptr;
+    _leaf_level = 0;
+  }
+
 public:
+  RTree()
+  {
+    init_root();
+  }
+  RTree( RTree const& rhs )
+  {
+    _root = rhs._root->clone_recursive();
+    _leaf_level = rhs._leaf_level;
+  }
+  RTree& operator=( RTree const& rhs )
+  {
+    delete_if();
+    _root = rhs._root->clone_recursive();
+    _leaf_level = rhs._leaf_level;
+    return *this;
+  }
+  RTree( RTree &&rhs )
+  {
+    _root = rhs._root;
+    _leaf_level = rhs._leaf_level;
+    rhs.set_null();
+    rhs.init_root();
+  }
+  RTree& operator=( RTree &&rhs )
+  {
+    delete_if();
+    _root = rhs._root;
+    _leaf_level = rhs._leaf_level;
+    rhs.set_null();
+    rhs.init_root();
+    return *this;
+  }
+
+  void init_root()
+  {
+    if( _root == nullptr )
+    {
+      _root = new node_type;
+      _leaf_level = 0;
+    }
+  }
 
   int leaves_level() const
   {
@@ -392,8 +459,8 @@ public:
 
           for( auto ci=parent->begin(); ci!=parent->end(); ++ci )
           {
-            area_type d1 = bound1.merged( ci->first ).area() - bound1.area();
-            area_type d2 = bound2.merged( ci->first ).area() - bound2.area();
+            const area_type d1 = bound1.merged( ci->first ).area() - bound1.area();
+            const area_type d2 = bound2.merged( ci->first ).area() - bound2.area();
             const auto diff = std::abs(d1 - d2);
 
             if( diff > maximum_difference )
