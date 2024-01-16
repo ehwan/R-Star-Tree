@@ -132,8 +132,8 @@ TEST( RTreeTest, double_RTree_range_test )
         for( auto &c : *node )
         {
           auto a = c.first;
-          auto b = c.second->bound();
-          ASSERT_TRUE( c.first.is_inside(c.second->bound()) ) << a.min_bound() << ", " << a.max_bound() << " : " << b.min_bound() << ", " << b.max_bound();
+          auto b = c.second->calculate_bound();
+          ASSERT_TRUE( c.first.is_inside(c.second->calculate_bound()) ) << a.min_bound() << ", " << a.max_bound() << " : " << b.min_bound() << ", " << b.max_bound();
         }
       }
     );

@@ -123,7 +123,7 @@ public:
     }
 
     // union bouinding box of children
-    bound_type bound() const
+    bound_type calculate_bound() const
     {
       bound_type merged = _child[0].first;
       for( int i=1; i<_child.size(); ++i )
@@ -149,8 +149,7 @@ public:
       new_node->_child.reserve( _child.size() );
       for( auto &c : *this )
       {
-        new_node->_child.emplace_back( c.first, c.second->clone_recursive() );
-        new_node->_child.back().second->parent = new_node;
+        new_node->add_child( c.first, c.second->clone_recursive() );
       }
       return new_node;
     }
@@ -245,12 +244,12 @@ public:
       if( parent == _root )
       {
         node_type *new_root = new node_type;
-        new_root->add_child( parent->bound(), parent );
-        new_root->add_child( pair->bound(), pair );
+        new_root->add_child( parent->calculate_bound(), parent );
+        new_root->add_child( pair->calculate_bound(), pair );
         _root = new_root;
         ++_leaf_level;
       }else {
-        insert_node( pair->bound(), pair, parent->parent() );
+        insert_node( pair->calculate_bound(), pair, parent->parent() );
       }
     }
   }
@@ -358,7 +357,7 @@ public:
       {
         if( c.second == N )
         {
-          c.first = N->bound();
+          c.first = N->calculate_bound();
         }
       }
       N = N->parent();
