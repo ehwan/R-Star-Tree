@@ -42,7 +42,7 @@ int main( int argc, char **argv )
 
   std::vector<rtree_type::node_type*> bfs_nodes, bfs_pong;
   int level = 0;
-  bfs_nodes.push_back( rtree.root_node() );
+  bfs_nodes.push_back( rtree.root() );
 
   while( level <= rtree.leaves_level() )
   {

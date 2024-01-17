@@ -11,6 +11,7 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 #include <algorithm>
 
 #include "global.hpp"
+#include "iterator.hpp"
 
 namespace eh { namespace rtree {
 
@@ -45,6 +46,7 @@ public:
   public:
     using bound_type = BoundType;
     using value_type = ValueType;
+    using size_type = RTree::size_type;
 
   protected:
     node_type *_parent = nullptr;
@@ -245,63 +247,6 @@ public:
     }
   };
 
-  // iterates through (only) inserted values
-  template < typename NodeType >
-  class same_level_node_iterator_t
-  {
-    using this_type = same_level_node_iterator_t;
-  public:
-    using value_type = ValueType;
-
-  protected:
-    NodeType *_node;
-
-  public:
-    same_level_node_iterator_t()
-      : _node(nullptr)
-    {
-    }
-    same_level_node_iterator_t( NodeType *node )
-      : _node(node)
-    {
-    }
-    bool operator==( this_type const& rhs ) const
-    {
-      return (_node==rhs._node);
-    }
-    bool operator!=( this_type const& rhs ) const
-    {
-      return (_node!=rhs._node);
-    }
-
-    NodeType* node() const
-    {
-      return _node;
-    }
-
-    this_type& operator++()
-    {
-      _node = _node->next();
-      return *this;
-    }
-    this_type operator++(int)
-    {
-      this_type ret = *this;
-      _node = _node->next();
-      return ret;
-    }
-    this_type& operator--()
-    {
-      _node = _node->prev();
-      return *this;
-    }
-    this_type operator--(int)
-    {
-      this_type ret = *this;
-      _node = _node->prev();
-      return ret;
-    }
-  };
 
 
 protected:
@@ -332,30 +277,32 @@ protected:
   }
 
 public:
-  using iterator = same_level_node_iterator_t<node_type>;
-  using const_iterator = same_level_node_iterator_t<node_type const>;
+  using iterator = level_node_iterator_t<node_type>;
+  using const_iterator = level_node_iterator_t<node_type const>;
 
   iterator begin()
   {
     node_type *n = _root;
     int level = 0;
-    while( level <= _leaf_level )
+    while( level < _leaf_level )
     {
       ++level;
       n = n->_child[0].second;
     }
-    return {n};
+    if( n->empty() ){ return {nullptr}; }
+    return {n->_child[0].second};
   }
   const_iterator cbegin() const
   {
     node_type const* n = _root;
     int level = 0;
-    while( level <= _leaf_level )
+    while( level < _leaf_level )
     {
       ++level;
       n = n->_child[0].second;
     }
-    return {n};
+    if( n->empty() ){ return {nullptr}; }
+    return {n->_child[0].second};
   }
   const_iterator begin() const
   {
@@ -407,7 +354,7 @@ public:
     return *this;
   }
 
-  node_type *root_node() const
+  node_type *root() const
   {
     return _root;
   }

@@ -76,16 +76,10 @@ TEST( RTreeTest, Insert )
   using node_type = rtree_type::node_type;
 
   rtree_type rtree;
+
   auto rtree_to_sorted_vec = []( rtree_type const& rtree )->std::vector<int>
   {
-    std::vector<int> ret;
-    rtree.iterate(
-      [&ret]( bound_type bound, int val )
-      {
-        ret.push_back( val );
-        return false;
-      }
-    );
+    std::vector<int> ret( rtree.begin(), rtree.end() );
     std::sort( ret.begin(), ret.end() );
     return ret;
   };
