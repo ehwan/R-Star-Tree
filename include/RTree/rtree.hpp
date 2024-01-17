@@ -108,9 +108,13 @@ public:
     }
 
     // child count
-    auto size() const
+    size_type size() const
     {
       return _child.size();
+    }
+    bool empty() const
+    {
+      return _child.empty();
     }
     // child iterator
     child_iterator begin()
@@ -164,6 +168,139 @@ public:
       }
       return new_node;
     }
+
+    // get next node on same level
+    // this would return node across different parent
+    // if it is last node, return nullptr
+    node_type *next()
+    {
+      // if n is root
+      if( _parent == nullptr ){ return nullptr; }
+
+      // if n is last node on parent
+      // return parent's next's 0th child node
+      if( _index_on_parent == _parent->size()-1 )
+      {
+        node_type *n = _parent->next();
+        if( n == nullptr ){ return nullptr; }
+        return n->_child[0].second;
+      }else {
+        // else; return next node in same parent
+        return _parent->_child[ _index_on_parent+1 ].second;
+      }
+    }
+    node_type const* next() const
+    {
+      // if n is root
+      if( _parent == nullptr ){ return nullptr; }
+
+      // if n is last node on parent
+      // return parent's next's 0th child node
+      if( _index_on_parent == _parent->size()-1 )
+      {
+        node_type const* n = _parent->next();
+        if( n == nullptr ){ return nullptr; }
+        return n->_child[0].second;
+      }else {
+        // else; return next node in same parent
+        return _parent->_child[ _index_on_parent+1 ].second;
+      }
+    }
+    // get prev node on same level
+    // this would return node across different parent
+    // if it is first node, return nullptr
+    node_type *prev()
+    {
+      // if n is root
+      if( _parent == nullptr ){ return nullptr; }
+
+      // if n is last node on parent
+      // return parent's next's 0th child node
+      if( _index_on_parent == 0 )
+      {
+        node_type *n = _parent->prev();
+        if( n == nullptr ){ return nullptr; }
+        return n->_child.back().second;
+      }else {
+        // else; return next node in same parent
+        return _parent->_child[ _index_on_parent-1 ].second;
+      }
+    }
+    node_type const* prev() const
+    {
+      // if n is root
+      if( _parent == nullptr ){ return nullptr; }
+
+      // if n is last node on parent
+      // return parent's next's 0th child node
+      if( _index_on_parent == 0 )
+      {
+        node_type const* n = _parent->prev();
+        if( n == nullptr ){ return nullptr; }
+        return n->_child.back().second;
+      }else {
+        // else; return next node in same parent
+        return _parent->_child[ _index_on_parent-1 ].second;
+      }
+    }
+  };
+
+  // iterates through (only) inserted values
+  template < typename NodeType >
+  class same_level_node_iterator_t
+  {
+    using this_type = same_level_node_iterator_t;
+  public:
+    using value_type = ValueType;
+
+  protected:
+    NodeType *_node;
+
+  public:
+    same_level_node_iterator_t()
+      : _node(nullptr)
+    {
+    }
+    same_level_node_iterator_t( NodeType *node )
+      : _node(node)
+    {
+    }
+    bool operator==( this_type const& rhs ) const
+    {
+      return (_node==rhs._node);
+    }
+    bool operator!=( this_type const& rhs ) const
+    {
+      return (_node!=rhs._node);
+    }
+
+    NodeType* node() const
+    {
+      return _node;
+    }
+
+    this_type& operator++()
+    {
+      _node = _node->next();
+      return *this;
+    }
+    this_type operator++(int)
+    {
+      this_type ret = *this;
+      _node = _node->next();
+      return ret;
+    }
+    this_type& operator--()
+    {
+      _node = _node->prev();
+      return *this;
+    }
+    this_type operator--(int)
+    {
+      this_type ret = *this;
+      _node = _node->prev();
+      return ret;
+    }
   };
 
 
@@ -195,6 +332,48 @@ protected:
   }
 
 public:
+  using iterator = same_level_node_iterator_t<node_type>;
+  using const_iterator = same_level_node_iterator_t<node_type const>;
+
+  iterator begin()
+  {
+    node_type *n = _root;
+    int level = 0;
+    while( level <= _leaf_level )
+    {
+      ++level;
+      n = n->_child[0].second;
+    }
+    return {n};
+  }
+  const_iterator cbegin() const
+  {
+    node_type const* n = _root;
+    int level = 0;
+    while( level <= _leaf_level )
+    {
+      ++level;
+      n = n->_child[0].second;
+    }
+    return {n};
+  }
+  const_iterator begin() const
+  {
+    return cbegin();
+  }
+  iterator end()
+  {
+    return {nullptr};
+  }
+  const_iterator cend() const
+  {
+    return {nullptr};
+  }
+  const_iterator end() const
+  {
+    return cend();
+  }
+
   RTree()
   {
     init_root();
@@ -239,7 +418,7 @@ public:
     return _leaf_level;
   }
 
-  // add node to parent
+  // insert node to given parent
   void insert_node( bound_type const& bound, node_type *node, node_type *parent )
   {
     parent->add_child( bound, node );
@@ -264,6 +443,7 @@ public:
       }
     }
   }
+  // insert node to appropriate parent
   void insert_node( bound_type const& bound, node_type *data_node )
   {
     /*
