@@ -37,6 +37,7 @@ public:
   constexpr static size_type MAX_ENTRIES = 8;
   // m <= M/2
   constexpr static size_type MIN_ENTRIES = 4;
+  static_assert( MIN_ENTRIES <= MAX_ENTRIES/2, "Invalid MIN_ENTRIES count" );
 
   class node_type
   {
@@ -46,9 +47,18 @@ public:
     using value_type = ValueType;
 
   protected:
-    std::vector<std::pair<bound_type,node_type*>> _child;
     node_type *_parent = nullptr;
+    std::vector<std::pair<bound_type,node_type*>> _child;
+    size_type _index_on_parent;
     value_type _data;
+
+    void reset_child_index()
+    {
+      for( size_type i=0; i<_child.size(); ++i )
+      {
+        _child[i].second->_index_on_parent = i;
+      }
+    }
 
   public:
     using child_iterator = typename decltype(_child)::iterator;
@@ -94,6 +104,7 @@ public:
     {
       _child.emplace_back( bound, node );
       node->_parent = this;
+      node->_index_on_parent = _child.size()-1;
     }
 
     // child count
@@ -352,14 +363,7 @@ public:
     while( 1 )
     {
       if( N->parent() == nullptr ){ break; }
-
-      for( auto &c : *N->parent() )
-      {
-        if( c.second == N )
-        {
-          c.first = N->calculate_bound();
-        }
-      }
+      N->parent()->_child[ N->_index_on_parent ].first = N->calculate_bound();
       N = N->parent();
     }
   }
