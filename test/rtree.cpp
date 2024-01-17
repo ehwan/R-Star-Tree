@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <RTree.hpp>
+#include <iterator>
 #include <map>
 #include <vector>
 #include <algorithm>
@@ -112,28 +113,97 @@ TEST( RTreeTest, double_RTree_range_test )
   std::mt19937 mt( std::random_device{}() );
   std::normal_distribution<double> dist( 0, 5 );
 
-  for( int i=0; i<100; ++i )
+  for( int i=0; i<1000; ++i )
   {
     double p = dist( mt );
     double end = p + 1e-2;
 
     tree.insert( {p,end}, i );
 
-    tree.iterate_node(
-      [&]( rtree_type::node_type *node )
+    for( int l=0; l<tree.leaves_level(); ++l )
+    {
+      for( auto ni=tree.begin(l); ni!=tree.end(); ++ni )
       {
-        if( node->level() >= tree.leaves_level() ){ return; }
+        auto *node = ni.node();
         for( auto &c : *node )
         {
+          ASSERT_EQ( c.second->parent(), node );
           auto a = c.first;
           auto b = c.second->calculate_bound();
           ASSERT_TRUE( c.first.is_inside(c.second->calculate_bound()) ) << a.min_bound() << ", " << a.max_bound() << " : " << b.min_bound() << ", " << b.max_bound();
         }
       }
-    );
+    }
+
+    ASSERT_EQ( std::distance(tree.begin(),tree.end()), i+1 ) << "distance(tree.iterator) is not equal to " << i+1;
   }
 
   // @TODO
   // RTree multi-dimension
 
+}
+
+TEST( RTreeTest, Erase )
+{
+  using rtree_type = er::RTree<er::bound_t<double>,int>;
+  using bound_type = rtree_type::bound_type;
+
+  rtree_type tree;
+
+  std::mt19937 mt( std::random_device{}() );
+  std::normal_distribution<double> dist( 0, 5 );
+
+
+  for( int i=0; i<1000; ++i )
+  {
+    double p = dist( mt );
+    double end = p + 1e-2;
+
+    tree.insert( {p,end}, i );
+  }
+
+  std::vector<bool> data_inserted( 1000, true );
+  for( int i=0; i<1000; ++i )
+  {
+    const int cur_size = 1000-i;
+    int erase_index = std::uniform_int_distribution<int>( 0, cur_size-1 )( mt );
+    auto it = tree.begin();
+    std::advance( it, erase_index );
+    rtree_type::node_type *erase_node = it.node();
+    ASSERT_EQ( erase_node->size(), 0 );
+    ASSERT_GE( erase_node->data(), 0 );
+    ASSERT_LT( erase_node->data(), 1000 );
+    data_inserted[erase_node->data()] = false;
+    tree.erase( erase_node );
+
+    for( int l=0; l<tree.leaves_level(); ++l )
+    {
+      for( auto ni=tree.begin(l); ni!=tree.end(); ++ni )
+      {
+        auto *node = ni.node();
+        for( auto &c : *node )
+        {
+          ASSERT_EQ( c.second->parent(), node );
+          auto a = c.first;
+          auto b = c.second->calculate_bound();
+          ASSERT_TRUE( c.first.is_inside(c.second->calculate_bound()) ) << a.min_bound() << ", " << a.max_bound() << " : " << b.min_bound() << ", " << b.max_bound();
+        }
+      }
+    }
+
+    std::vector<bool> data_current( 1000, false );
+    for( auto b=tree.begin(); b!=tree.end(); ++b )
+    {
+      data_current[ *b ] = false;
+    }
+
+    bool data_match = true;
+    for( int j=0; j<1000; ++j )
+    {
+      if( data_current[j] != data_current[j] ){ data_match = false; break; }
+    }
+    ASSERT_TRUE( data_match );
+
+    ASSERT_EQ( std::distance(tree.begin(),tree.end()), cur_size-1 ) << "distance(tree.iterator) is not equal to " << i+1;
+  }
 }

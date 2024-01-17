@@ -39,6 +39,7 @@ public:
   // m <= M/2
   constexpr static size_type MIN_ENTRIES = 4;
   static_assert( MIN_ENTRIES <= MAX_ENTRIES/2, "Invalid MIN_ENTRIES count" );
+  static_assert( MIN_ENTRIES >= 1, "Invalid MIN_ENTRIES count" );
 
   class node_type
   {
@@ -53,14 +54,6 @@ public:
     std::vector<std::pair<bound_type,node_type*>> _child;
     size_type _index_on_parent;
     value_type _data;
-
-    void reset_child_index()
-    {
-      for( size_type i=0; i<_child.size(); ++i )
-      {
-        _child[i].second->_index_on_parent = i;
-      }
-    }
 
   public:
     using child_iterator = typename decltype(_child)::iterator;
@@ -247,6 +240,9 @@ public:
     }
   };
 
+  using iterator = level_node_iterator_t<node_type>;
+  using const_iterator = level_node_iterator_t<node_type const>;
+
 
 
 protected:
@@ -276,150 +272,8 @@ protected:
     }
   }
 
-public:
-  using iterator = level_node_iterator_t<node_type>;
-  using const_iterator = level_node_iterator_t<node_type const>;
-
-  iterator begin()
-  {
-    node_type *n = _root;
-    int level = 0;
-    while( level < _leaf_level )
-    {
-      ++level;
-      n = n->_child[0].second;
-    }
-    if( n->empty() ){ return {nullptr}; }
-    return {n->_child[0].second};
-  }
-  const_iterator cbegin() const
-  {
-    node_type const* n = _root;
-    int level = 0;
-    while( level < _leaf_level )
-    {
-      ++level;
-      n = n->_child[0].second;
-    }
-    if( n->empty() ){ return {nullptr}; }
-    return {n->_child[0].second};
-  }
-  const_iterator begin() const
-  {
-    return cbegin();
-  }
-  iterator end()
-  {
-    return {nullptr};
-  }
-  const_iterator cend() const
-  {
-    return {nullptr};
-  }
-  const_iterator end() const
-  {
-    return cend();
-  }
-
-  RTree()
-  {
-    init_root();
-  }
-  RTree( RTree const& rhs )
-  {
-    _root = rhs._root->clone_recursive();
-    _leaf_level = rhs._leaf_level;
-  }
-  RTree& operator=( RTree const& rhs )
-  {
-    delete_if();
-    _root = rhs._root->clone_recursive();
-    _leaf_level = rhs._leaf_level;
-    return *this;
-  }
-  RTree( RTree &&rhs )
-  {
-    _root = rhs._root;
-    _leaf_level = rhs._leaf_level;
-    rhs.set_null();
-    rhs.init_root();
-  }
-  RTree& operator=( RTree &&rhs )
-  {
-    delete_if();
-    _root = rhs._root;
-    _leaf_level = rhs._leaf_level;
-    rhs.set_null();
-    rhs.init_root();
-    return *this;
-  }
-
-  node_type *root() const
-  {
-    return _root;
-  }
-
-
-  int leaves_level() const
-  {
-    return _leaf_level;
-  }
-
-  // insert node to given parent
-  void insert_node( bound_type const& bound, node_type *node, node_type *parent )
-  {
-    parent->add_child( bound, node );
-    node_type *pair = nullptr;
-
-    if( parent->size() > MAX_ENTRIES )
-    {
-      pair = split( parent );
-    }
-    adjust_tree( parent );
-    if( pair )
-    {
-      if( parent == _root )
-      {
-        node_type *new_root = new node_type;
-        new_root->add_child( parent->calculate_bound(), parent );
-        new_root->add_child( pair->calculate_bound(), pair );
-        _root = new_root;
-        ++_leaf_level;
-      }else {
-        insert_node( pair->calculate_bound(), pair, parent->parent() );
-      }
-    }
-  }
-  // insert node to appropriate parent
-  void insert_node( bound_type const& bound, node_type *data_node )
-  {
-    /*
-    I1. [Find position for new record.]
-    Invoke ChooseLeaf to select a leaf node L in which to place E.
-
-    I2. [Add record to leaf node.] 
-    If L has room for another entry, install E.
-    Otherwise invoke SplitNode to obtain L and LL containing E and all the old entries of L.
-
-    I3. [Propagate changes upward.] 
-    Invoke AdjustTree on L, also passing LL if a split was performed.
-
-    I4. [Grow tree taller.]
-    If node split propagation caused the root to split, create a new root whose children are the two resulting nodes.
-    */
-
-    node_type *chosen = choose_leaf( bound );
-    insert_node( bound, data_node, chosen );
-  }
-
-  void insert( bound_type const& bound, value_type val )
-  {
-    node_type *new_data_node = new node_type;
-    new_data_node->_data = std::move(val);
-    insert_node( bound, new_data_node );
-  }
-
-  node_type *choose_leaf( bound_type const& bound )
+  // search for appropriate parent in target_level to insert bound
+  node_type *choose_insert_parent( bound_type const& bound, int target_level )
   {
     /*
     CLl. [Initialize.]
@@ -437,8 +291,7 @@ public:
     */
 
     node_type *n = _root;
-    int level = 0;
-    while( level < _leaf_level )
+    for( int level=0; level<target_level; ++level )
     {
       area_type min_area_enlarge = MAX_AREA;
       typename node_type::child_iterator chosen = n->end();
@@ -459,7 +312,6 @@ public:
         }
       }
       n = chosen->second;
-      ++level;
     }
     return n;
   }
@@ -494,6 +346,226 @@ public:
       N = N->parent();
     }
   }
+
+  // node must be leaf node
+  void condense_tree( node_type *node )
+  {
+    std::vector< std::pair<int,node_type*> > reinsert_nodes;
+    for( int level=_leaf_level; level>0; --level )
+    {
+      if( node->size() < MIN_ENTRIES )
+      {
+        // delete node from node's parent
+        if( node->_index_on_parent < node->parent()->size()-1 )
+        {
+          node->parent()->_child.back().second->_index_on_parent = node->_index_on_parent;
+          node->parent()->_child[ node->_index_on_parent ] = node->parent()->_child.back();
+        }
+        node->parent()->_child.pop_back();
+        // insert node to set
+        reinsert_nodes.emplace_back( _leaf_level-level, node );
+      }else {
+        node->parent()->_child[ node->_index_on_parent ].first = node->calculate_bound();
+      }
+      node = node->parent();
+    }
+
+    // root adjustment
+    if( _root->size() == 1 && _leaf_level > 0 )
+    {
+      node_type *child = _root->_child[0].second;
+      delete _root;
+      child->_parent = nullptr;
+      _root = child;
+      --_leaf_level;
+    }
+
+    // reinsert entries
+    for( auto reinsert : reinsert_nodes )
+    {
+      for( auto &c : *reinsert.second )
+      {
+        node_type *chosen = choose_insert_parent( c.first, _leaf_level-reinsert.first );
+        c.second->_parent = nullptr;
+        insert_node( c.first, c.second, chosen );
+      }
+      delete reinsert.second;
+    }
+
+
+  }
+
+public:
+
+  RTree()
+  {
+    init_root();
+  }
+  RTree( RTree const& rhs )
+  {
+    _root = rhs._root->clone_recursive();
+    _leaf_level = rhs._leaf_level;
+  }
+  RTree& operator=( RTree const& rhs )
+  {
+    delete_if();
+    _root = rhs._root->clone_recursive();
+    _leaf_level = rhs._leaf_level;
+    return *this;
+  }
+  RTree( RTree &&rhs )
+  {
+    _root = rhs._root;
+    _leaf_level = rhs._leaf_level;
+    rhs.set_null();
+    rhs.init_root();
+  }
+  RTree& operator=( RTree &&rhs )
+  {
+    delete_if();
+    _root = rhs._root;
+    _leaf_level = rhs._leaf_level;
+    rhs.set_null();
+    rhs.init_root();
+    return *this;
+  }
+
+  iterator begin()
+  {
+    node_type *n = _root;
+    for( int level=0; level<_leaf_level; ++level )
+    {
+      n = n->_child[0].second;
+    }
+    if( n->empty() ){ return {nullptr}; }
+    return {n->_child[0].second};
+  }
+  const_iterator cbegin() const
+  {
+    node_type const* n = _root;
+    for( int level=0; level<_leaf_level; ++level )
+    {
+      n = n->_child[0].second;
+    }
+    if( n->empty() ){ return {nullptr}; }
+    return {n->_child[0].second};
+  }
+  const_iterator begin() const
+  {
+    return cbegin();
+  }
+
+  iterator begin( int target_level )
+  {
+    node_type *n = _root;
+    for( int level=0; level<target_level; ++level )
+    {
+      n = n->_child[0].second;
+    }
+    return {n};
+  }
+  const_iterator cbegin( int target_level ) const
+  {
+    node_type const* n = _root;
+    for( int level=0; level<target_level; ++level )
+    {
+      n = n->_child[0].second;
+    }
+    return {n};
+  }
+  const_iterator begin( int target_level ) const
+  {
+    return cbegin( target_level );
+  }
+  iterator end()
+  {
+    return {nullptr};
+  }
+  const_iterator cend() const
+  {
+    return {nullptr};
+  }
+  const_iterator end() const
+  {
+    return cend();
+  }
+
+
+  node_type *root() const
+  {
+    return _root;
+  }
+
+
+  int leaves_level() const
+  {
+    return _leaf_level;
+  }
+
+  // insert node to given parent
+  void insert_node( bound_type const& bound, node_type *node, node_type *parent )
+  {
+    /*
+    I1. [Find position for new record.]
+    Invoke ChooseLeaf to select a leaf node L in which to place E.
+
+    I2. [Add record to leaf node.] 
+    If L has room for another entry, install E.
+    Otherwise invoke SplitNode to obtain L and LL containing E and all the old entries of L.
+
+    I3. [Propagate changes upward.] 
+    Invoke AdjustTree on L, also passing LL if a split was performed.
+
+    I4. [Grow tree taller.]
+    If node split propagation caused the root to split, create a new root whose children are the two resulting nodes.
+    */
+    parent->add_child( bound, node );
+    node_type *pair = nullptr;
+
+    if( parent->size() > MAX_ENTRIES )
+    {
+      pair = split( parent );
+    }
+    adjust_tree( parent );
+    if( pair )
+    {
+      if( parent == _root )
+      {
+        node_type *new_root = new node_type;
+        new_root->add_child( parent->calculate_bound(), parent );
+        new_root->add_child( pair->calculate_bound(), pair );
+        _root = new_root;
+        ++_leaf_level;
+      }else {
+        insert_node( pair->calculate_bound(), pair, parent->parent() );
+      }
+    }
+  }
+
+  // node must be data node;
+  // which is, node's level is leaf_level+1
+  void erase( node_type *node )
+  {
+    if( node->_index_on_parent < node->parent()->size()-1 )
+    {
+      node->parent()->_child.back().second->_index_on_parent = node->_index_on_parent;
+      node->parent()->_child[ node->_index_on_parent ] = node->parent()->_child.back();
+    }
+    node->parent()->_child.pop_back();
+
+    condense_tree( node->parent() );
+    delete node;
+  }
+
+  // insert new data to appropriate parent
+  void insert( bound_type const& bound, value_type val )
+  {
+    node_type *new_data_node = new node_type;
+    new_data_node->_data = std::move(val);
+    node_type *chosen = choose_insert_parent( bound, _leaf_level );
+    insert_node( bound, new_data_node, chosen );
+  }
+
 
   // split nodes 'as-is'
   struct just_split_t
@@ -667,52 +739,6 @@ public:
     // @TODO another split scheme
     splitter_t spliter;
     return spliter( parent );
-  }
-
-protected:
-  template < typename Functor >
-  bool iterate_wrapper( Functor functor, node_type *node, int level ) const
-  {
-    if( level == _leaf_level )
-    {
-      for( auto &c : *node )
-      {
-        if( functor(c.first, c.second->data()) )
-        {
-          return true;
-        }
-      }
-    }else {
-      for( auto &c : *node )
-      {
-        if( iterate_wrapper( functor, c.second, level+1 ) )
-        {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-  template < typename Functor >
-  void iterate_node_wrapper( Functor functor, node_type *node ) const
-  {
-    functor(node);
-    for( auto &c : *node )
-    {
-      iterate_node_wrapper( functor, c.second );
-    }
-  }
-public:
-  template < typename Functor >
-  void iterate( Functor functor ) const
-  {
-    iterate_wrapper( functor, _root, 0 );
-  }
-
-  template < typename Functor >
-  void iterate_node( Functor functor ) const
-  {
-    iterate_node_wrapper( functor, _root );
   }
 };
 
