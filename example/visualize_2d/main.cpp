@@ -37,9 +37,8 @@ int main( int argc, char **argv )
 
     const double epsilon = 1e-6;
     point_type point = { r*std::cos(theta), r*std::sin(theta) };
-    point_type end_point = { point[0]+epsilon, point[1]+epsilon };
 
-    rtree.insert( bound_type{point,end_point}, i+1 );
+    rtree.insert( bound_type{point,point}, i+1 );
   }
 
   // print tree structures to stdout

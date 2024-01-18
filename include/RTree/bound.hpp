@@ -46,7 +46,7 @@ public:
   template < typename _PointType >
   bool is_inside( _PointType const& p ) const
   {
-    return (min_bound() <= p) && (p < max_bound());
+    return (min_bound() <= p) && (p <= max_bound());
   }
   template < typename _PointType >
   bool is_inside( bound_t<_PointType> const& b ) const
@@ -61,11 +61,15 @@ public:
   template < typename _PointType >
   bool is_overlap( bound_t<_PointType> const& b ) const
   {
-    if( !(b.min_bound() < max_bound()) ){ return false; }
-    if( !(min_bound() < b.max_bound()) ){ return false; }
+    if( !(b.min_bound() <= max_bound()) ){ return false; }
+    if( !(min_bound() <= b.max_bound()) ){ return false; }
     return true;
   }
 
+  bound_t merged( point_type const& p ) const
+  {
+    return { std::min(p,min_bound()), std::max(p,max_bound()) };
+  }
   bound_t merged( bound_t const& b ) const
   {
     return { std::min(_min,b.min_bound()), std::max(_max,b.max_bound()) };
@@ -117,7 +121,7 @@ public:
   template < typename _PointType >
   bool is_inside( _PointType const& p ) const
   {
-    return (min_bound() <= p) && (p < max_bound());
+    return (min_bound() <= p) && (p <= max_bound());
   }
   template < typename _PointType >
   bool is_inside( bound_t<_PointType> const& b ) const
@@ -132,11 +136,15 @@ public:
   template < typename _PointType >
   bool is_overlap( bound_t<_PointType> const& b ) const
   {
-    if( !(b.min_bound() < max_bound()) ){ return false; }
-    if( !(min_bound() < b.max_bound()) ){ return false; }
+    if( !(b.min_bound() <= max_bound()) ){ return false; }
+    if( !(min_bound() <= b.max_bound()) ){ return false; }
     return true;
   }
 
+  bound_t merged( point_type const& p ) const
+  {
+    return { std::min(p,min_bound()), std::max(p,max_bound()) };
+  }
   bound_t merged( bound_t const& b ) const
   {
     return { eh::rtree::min(_min,b.min_bound()), eh::rtree::max(_max,b.max_bound()) };

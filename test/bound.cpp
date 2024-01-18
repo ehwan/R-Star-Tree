@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <RTree.hpp>
+#include <random>
 
 // one-dimensional bound_type with arithmetic point type
 using ibound_type = eh::rtree::bound_t<int>;
@@ -18,184 +19,63 @@ TEST( BoundTest, Initialize_f )
   EXPECT_FLOAT_EQ( bound.min_bound(), 10.0f );
   EXPECT_FLOAT_EQ( bound.max_bound(), 20.0f );
 }
-TEST( BoundTest, IsInside )
+TEST( BoundTest, HitTest )
 {
   ibound_type bound( 10, 20 );
-  ibound_type bound_inside1( 11, 19 );
-  ibound_type bound_inside2( 11, 20 );
-  ibound_type bound_inside3( 15, 16 );
+  for( int i=10; i<=20; ++i )
+  {
+    EXPECT_TRUE( bound.is_inside(i) ) << i;
+    EXPECT_TRUE( bound.is_overlap(i) ) << i;
+  }
+  EXPECT_FALSE( bound.is_inside(9) );
+  EXPECT_FALSE( bound.is_inside(21) );
 
-  ibound_type left_close( 5, 11 );
-  ibound_type left_far1( 5, 10 );
-  ibound_type left_far2( 0, 5 );
+  std::mt19937 mt;
+  std::uniform_int_distribution<int> dist( 0, 30 );
+  for( int i=0; i<500; ++i )
+  {
+    int m = dist(mt);
+    int M = dist(mt);
+    if( m > M ){ std::swap(m,M); }
 
-  ibound_type right_close( 19, 25 );
-  ibound_type right_far1( 20, 25 );
-  ibound_type right_far2( 25, 30 );
+    bool inside = (m >= 10 && M <=20);
+    bool overlap = false;
+    for( int j=m; j<=M; ++j )
+    {
+      if( bound.is_inside(j) ){ overlap = true; break; }
+    }
 
-  int point_in1 = 10;
-  int point_in2 = 15;
-  int point_in3 = 19;
-
-  int point_out1 = 9;
-  int point_out2 = 20;
-  int point_out3 = 25;
-
-  EXPECT_TRUE( bound.is_inside(bound) );
-
-  EXPECT_TRUE( bound.is_inside(bound_inside1) );
-  EXPECT_TRUE( bound.is_inside(bound_inside2) );
-  EXPECT_TRUE( bound.is_inside(bound_inside3) );
-
-  EXPECT_FALSE( bound.is_inside(left_close) );
-  EXPECT_FALSE( bound.is_inside(left_far1) );
-  EXPECT_FALSE( bound.is_inside(left_far2) );
-
-  EXPECT_FALSE( bound.is_inside(right_close) );
-  EXPECT_FALSE( bound.is_inside(right_far1) );
-  EXPECT_FALSE( bound.is_inside(right_far2) );
-
-  EXPECT_TRUE( bound.is_inside(point_in1) );
-  EXPECT_TRUE( bound.is_inside(point_in2) );
-  EXPECT_TRUE( bound.is_inside(point_in3) );
-
-  EXPECT_FALSE( bound.is_inside(point_out1) );
-  EXPECT_FALSE( bound.is_inside(point_out2) );
-  EXPECT_FALSE( bound.is_inside(point_out3) );
+    ASSERT_EQ( bound.is_inside(ibound_type(m,M)), inside ) << "[" << m << ", " << M << "]";
+    ASSERT_EQ( bound.is_overlap(ibound_type(m,M)), overlap ) << "[" << m << ", " << M << "]";
+  }
 }
-TEST( BoundTest, IsInside_f )
+TEST( BoundTest, HitTestf )
 {
   fbound_type bound( 10, 20 );
-  fbound_type bound_inside1( 11, 19 );
-  fbound_type bound_inside2( 11, 20 );
-  fbound_type bound_inside3( 15, 16 );
+  for( int i=11; i<=19; ++i )
+  {
+    EXPECT_TRUE( bound.is_inside(i) ) << i;
+    EXPECT_TRUE( bound.is_overlap(i) ) << i;
+  }
+  EXPECT_TRUE( bound.is_inside(10+1e-6f) );
+  EXPECT_TRUE( bound.is_inside(20-1e-6f) );
+  EXPECT_FALSE( bound.is_inside(10-1e-6f) );
+  EXPECT_FALSE( bound.is_inside(20+1e-6f) );
 
-  fbound_type left_close( 5, 11 );
-  fbound_type left_far1( 5, 10 );
-  fbound_type left_far2( 0, 5 );
+  std::mt19937 mt;
+  std::uniform_real_distribution<float> dist( 0, 30 );
+  for( int i=0; i<500; ++i )
+  {
+    float m = dist(mt);
+    float M = dist(mt);
+    if( m > M ){ std::swap(m,M); }
 
-  fbound_type right_close( 19, 25 );
-  fbound_type right_far1( 20, 25 );
-  fbound_type right_far2( 25, 30 );
+    bool inside = (m >= 10 && M <=20);
+    bool overlap = !((M<10)||(m>20));
 
-  float point_in1 = 10;
-  float point_in2 = 15;
-  float point_in3 = 19;
-
-  float point_out1 = 9;
-  float point_out2 = 20;
-  float point_out3 = 25;
-
-  EXPECT_TRUE( bound.is_inside(bound) );
-
-  EXPECT_TRUE( bound.is_inside(bound_inside1) );
-  EXPECT_TRUE( bound.is_inside(bound_inside2) );
-  EXPECT_TRUE( bound.is_inside(bound_inside3) );
-
-  EXPECT_FALSE( bound.is_inside(left_close) );
-  EXPECT_FALSE( bound.is_inside(left_far1) );
-  EXPECT_FALSE( bound.is_inside(left_far2) );
-
-  EXPECT_FALSE( bound.is_inside(right_close) );
-  EXPECT_FALSE( bound.is_inside(right_far1) );
-  EXPECT_FALSE( bound.is_inside(right_far2) );
-
-  EXPECT_TRUE( bound.is_inside(point_in1) );
-  EXPECT_TRUE( bound.is_inside(point_in2) );
-  EXPECT_TRUE( bound.is_inside(point_in3) );
-
-  EXPECT_FALSE( bound.is_inside(point_out1) );
-  EXPECT_FALSE( bound.is_inside(point_out2) );
-  EXPECT_FALSE( bound.is_inside(point_out3) );
-}
-
-TEST( BoundTest, IsOverlap )
-{
-  ibound_type bound( 10, 20 );
-  ibound_type bound_inside1( 11, 19 );
-  ibound_type bound_inside2( 11, 20 );
-  ibound_type bound_inside3( 15, 16 );
-
-  ibound_type left_close( 5, 11 );
-  ibound_type left_far1( 5, 10 );
-  ibound_type left_far2( 0, 5 );
-
-  ibound_type right_close( 19, 25 );
-  ibound_type right_far1( 20, 25 );
-  ibound_type right_far2( 25, 30 );
-
-  int point_in1 = 10;
-  int point_in2 = 15;
-  int point_in3 = 19;
-
-  int point_out1 = 9;
-  int point_out2 = 20;
-  int point_out3 = 25;
-
-
-  EXPECT_TRUE( bound.is_overlap(bound) );
-  EXPECT_TRUE( bound.is_overlap(bound_inside1) );
-  EXPECT_TRUE( bound.is_overlap(bound_inside2) );
-  EXPECT_TRUE( bound.is_overlap(bound_inside3) );
-
-  EXPECT_TRUE( bound.is_overlap(left_close) );
-  EXPECT_FALSE( bound.is_overlap(left_far1) );
-  EXPECT_FALSE( bound.is_overlap(left_far2) );
-  EXPECT_TRUE( bound.is_overlap(right_close) );
-  EXPECT_FALSE( bound.is_overlap(right_far1) );
-  EXPECT_FALSE( bound.is_overlap(right_far2) );
-
-  EXPECT_TRUE( bound.is_overlap(point_in1) );
-  EXPECT_TRUE( bound.is_overlap(point_in2) );
-  EXPECT_TRUE( bound.is_overlap(point_in3) );
-
-  EXPECT_FALSE( bound.is_overlap(point_out1) );
-  EXPECT_FALSE( bound.is_overlap(point_out2) );
-  EXPECT_FALSE( bound.is_overlap(point_out3) );
-}
-TEST( BoundTest, IsOverlap_f )
-{
-  fbound_type bound( 10, 20 );
-  fbound_type bound_inside1( 11, 19 );
-  fbound_type bound_inside2( 11, 20 );
-  fbound_type bound_inside3( 15, 16 );
-
-  fbound_type left_close( 5, 11 );
-  fbound_type left_far1( 5, 10 );
-  fbound_type left_far2( 0, 5 );
-
-  fbound_type right_close( 19, 25 );
-  fbound_type right_far1( 20, 25 );
-  fbound_type right_far2( 25, 30 );
-
-  float point_in1 = 10;
-  float point_in2 = 15;
-  float point_in3 = 19;
-
-  float point_out1 = 9;
-  float point_out2 = 20;
-  float point_out3 = 25;
-
-
-  EXPECT_TRUE( bound.is_overlap(bound) );
-  EXPECT_TRUE( bound.is_overlap(bound_inside1) );
-  EXPECT_TRUE( bound.is_overlap(bound_inside2) );
-  EXPECT_TRUE( bound.is_overlap(bound_inside3) );
-
-  EXPECT_TRUE( bound.is_overlap(left_close) );
-  EXPECT_FALSE( bound.is_overlap(left_far1) );
-  EXPECT_FALSE( bound.is_overlap(left_far2) );
-  EXPECT_TRUE( bound.is_overlap(right_close) );
-  EXPECT_FALSE( bound.is_overlap(right_far1) );
-  EXPECT_FALSE( bound.is_overlap(right_far2) );
-
-  EXPECT_TRUE( bound.is_overlap(point_in1) );
-  EXPECT_TRUE( bound.is_overlap(point_in2) );
-  EXPECT_TRUE( bound.is_overlap(point_in3) );
-
-  EXPECT_FALSE( bound.is_overlap(point_out1) );
-  EXPECT_FALSE( bound.is_overlap(point_out2) );
-  EXPECT_FALSE( bound.is_overlap(point_out3) );
+    ASSERT_EQ( bound.is_inside(fbound_type(m,M)), inside ) << "[" << m << ", " << M << "]";
+    ASSERT_EQ( bound.is_overlap(fbound_type(m,M)), overlap ) << "[" << m << ", " << M << "]";
+  }
 }
 
 TEST( BoundTest, Merge )
@@ -231,7 +111,7 @@ TEST( BoundTest, Merge )
   EXPECT_EQ( merged.max_bound(), 10 );
 }
 
-TEST( BoundTest, Merge_f )
+TEST( BoundTest, Mergef )
 {
   fbound_type left( 0, 3 );
   fbound_type right( 6, 11 );

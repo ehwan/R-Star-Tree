@@ -22,7 +22,7 @@ TEST( RTreeTest, QuadraticSplit )
     node_type *data_node = new node_type;
     data_node->data() = i;
 
-    parent->add_child( er::bound_t<int>(i,i+1), data_node );
+    parent->add_child( er::bound_t<int>(i,i), data_node );
   }
   ASSERT_EQ( parent->size(), rtree_type::MAX_ENTRIES+1 );
 
@@ -97,7 +97,7 @@ TEST( RTreeTest, Insert )
   std::vector<int> expected;
   for( int i=0; i<100; ++i )
   {
-    rtree.insert( {i,i+1}, i );
+    rtree.insert( {i,i}, i );
     expected.push_back( i );
     vector_expect(expected, rtree_to_sorted_vec(rtree));
   }
@@ -116,9 +116,8 @@ TEST( RTreeTest, double_RTree_range_test )
   for( int i=0; i<1000; ++i )
   {
     double p = dist( mt );
-    double end = p + 1e-2;
 
-    tree.insert( {p,end}, i );
+    tree.insert( {p,p}, i );
 
     for( int l=0; l<tree.leaves_level(); ++l )
     {
@@ -157,9 +156,8 @@ TEST( RTreeTest, Erase )
   for( int i=0; i<1000; ++i )
   {
     double p = dist( mt );
-    double end = p + 1e-2;
 
-    tree.insert( {p,end}, i );
+    tree.insert( {p,p}, i );
   }
 
   std::vector<bool> data_inserted( 1000, true );

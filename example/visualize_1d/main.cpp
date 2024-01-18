@@ -30,9 +30,8 @@ int main( int argc, char **argv )
   for( int i=0; i<N; ++i )
   {
     double point = normal_distribute(mt_engine);
-    double end_point = point + 1e-9;
 
-    rtree.insert( {point,end_point}, i+1 );
+    rtree.insert( {point,point}, i+1 );
   }
 
   // print tree structures to stdout
