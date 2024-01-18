@@ -72,6 +72,20 @@ public:
     node->_parent = this;
     node->_index_on_parent = _child.size()-1;
   }
+  void erase_child( node_type *node )
+  {
+    if( node->_index_on_parent < size()-1 )
+    {
+      _child.back().second->_index_on_parent = node->_index_on_parent;
+      _child[node->_index_on_parent] = _child.back();
+    }
+    node->_parent = nullptr;
+    _child.pop_back();
+  }
+  std::pair<bound_type,node_type*>& entry()
+  {
+    return _parent->_child[ _index_on_parent ];
+  }
 
   // child count
   size_type size() const

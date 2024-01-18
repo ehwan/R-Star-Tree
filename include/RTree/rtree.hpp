@@ -183,7 +183,7 @@ protected:
     while( 1 )
     {
       if( N->parent() == nullptr ){ break; }
-      N->parent()->_child[ N->_index_on_parent ].first = N->calculate_bound();
+      N->entry().first = N->calculate_bound();
       N = N->parent();
     }
   }
@@ -194,40 +194,36 @@ protected:
     std::vector< std::pair<int,node_type*> > reinsert_nodes;
     for( int level=_leaf_level; level>0; --level )
     {
+      node_type *parent = node->parent();
       if( node->size() < MIN_ENTRIES )
       {
         // delete node from node's parent
-        if( node->_index_on_parent < node->parent()->size()-1 )
-        {
-          node->parent()->_child.back().second->_index_on_parent = node->_index_on_parent;
-          node->parent()->_child[ node->_index_on_parent ] = node->parent()->_child.back();
-        }
-        node->parent()->_child.pop_back();
+        parent->erase_child( node );
         // insert node to set
         reinsert_nodes.emplace_back( _leaf_level-level, node );
       }else {
-        node->parent()->_child[ node->_index_on_parent ].first = node->calculate_bound();
+        node->entry().first = node->calculate_bound();
       }
-      node = node->parent();
+      node = parent;
     }
 
     // root adjustment
     if( _root->size() == 1 && _leaf_level > 0 )
     {
       node_type *child = _root->_child[0].second;
+      _root->erase_child( child );
       delete _root;
-      child->_parent = nullptr;
       _root = child;
       --_leaf_level;
     }
 
     // reinsert entries
+    // sustain the relative level from leaf
     for( auto reinsert : reinsert_nodes )
     {
       for( auto &c : *reinsert.second )
       {
         node_type *chosen = choose_insert_parent( c.first, _leaf_level-reinsert.first );
-        c.second->_parent = nullptr;
         insert_node( c.first, c.second, chosen );
       }
       delete reinsert.second;
@@ -348,14 +344,9 @@ public:
   // which is, node's level is leaf_level+1
   void erase( node_type *node )
   {
-    if( node->_index_on_parent < node->parent()->size()-1 )
-    {
-      node->parent()->_child.back().second->_index_on_parent = node->_index_on_parent;
-      node->parent()->_child[ node->_index_on_parent ] = node->parent()->_child.back();
-    }
-    node->parent()->_child.pop_back();
-
-    condense_tree( node->parent() );
+    auto *parent = node->parent();
+    parent->erase_child( node );
+    condense_tree( parent );
     delete node;
   }
 
