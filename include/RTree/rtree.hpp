@@ -5,6 +5,7 @@ References:
 Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, University if California Berkeley
 */
 
+#include <iterator>
 #include <limits>
 #include <vector>
 #include <utility>
@@ -16,17 +17,21 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-template < typename BoundType, typename ValueType >
+template < typename BoundType, typename KeyType, typename MappedType >
 class RTree
 {
 public:
+  using node_base_type = node_base_t<BoundType,KeyType,MappedType>;
+  using node_type = node_t<BoundType,KeyType,MappedType>;
+  using leaf_type = leaf_node_t<BoundType,KeyType,MappedType>;
+
   using size_type = unsigned int;
 
-  // data type
-  using value_type = ValueType;
-
-  // multiple scalar; N-dimension
   using bound_type = BoundType;
+  using key_type = KeyType;
+  using mapped_type = MappedType;
+
+  using value_type = std::pair<key_type, mapped_type>;
 
   using point_type = typename bound_type::point_type;
 
@@ -42,21 +47,31 @@ public:
   static_assert( MIN_ENTRIES <= MAX_ENTRIES/2, "Invalid MIN_ENTRIES count" );
   static_assert( MIN_ENTRIES >= 1, "Invalid MIN_ENTRIES count" );
 
-  using node_type = node_t<bound_type,value_type>;
+  using iterator = iterator_t<leaf_type>;
+  using const_iterator = iterator_t<leaf_type const>;
 
-  using iterator = level_node_iterator_t<node_type>;
-  using const_iterator = level_node_iterator_t<node_type const>;
+  using node_iterator = node_iterator_t<node_type>;
+  using const_node_iterator = node_iterator_t<node_type const>;
+  
+  using leaf_iterator = node_iterator_t<leaf_type>;
+  using const_leaf_iterator = node_iterator_t<leaf_type const>;
 
 protected:
-  node_type *_root = nullptr;
+  node_base_type *_root = nullptr;
   int _leaf_level = 0;
 
   void delete_if()
   {
     if( _root )
     {
-      _root->delete_recursive();
-      delete _root;
+      if( _leaf_level == 0 )
+      {
+        reinterpret_cast<leaf_type*>( _root )->delete_recursive();
+        delete reinterpret_cast<leaf_type*>( _root );
+      }else {
+        reinterpret_cast<node_type*>( _root )->delete_recursive( _leaf_level );
+        delete reinterpret_cast<node_type*>( _root );
+      }
     }
   }
   void set_null()
@@ -69,14 +84,16 @@ protected:
   {
     if( _root == nullptr )
     {
-      _root = new node_type;
+      _root = new leaf_type;
       _leaf_level = 0;
     }
   }
 
-  // search for appropriate parent in target_level to insert bound
-  node_type *choose_insert_parent( bound_type const& bound, int target_level )
+
+  // search for appropriate node in target_level to insert bound
+  node_type *choose_insert_target( bound_type const& bound, int target_level )
   {
+    assert( target_level <= _leaf_level );
     /*
     CLl. [Initialize.]
     Set N to be the root node.
@@ -92,11 +109,11 @@ protected:
     Set N to be the child node pointed to by F.p and repeat from CL2.
     */
 
-    node_type *n = _root;
+    node_type *n = reinterpret_cast<node_type*>(_root);
     for( int level=0; level<target_level; ++level )
     {
       area_type min_area_enlarge = MAX_AREA;
-      typename node_type::child_iterator chosen = n->end();
+      typename node_type::iterator chosen = n->end();
 
       for( auto ci=n->begin(); ci!=n->end(); ++ci )
       {
@@ -113,42 +130,46 @@ protected:
           }
         }
       }
-      n = chosen->second;
+      assert( chosen != n->end() );
+      n = reinterpret_cast<node_type*>(chosen->second);
     }
     return n;
   }
-  // insert node to given parent
-  void insert_node( bound_type const& bound, node_type *node, node_type *parent )
+  void broadcast_new_bound( node_type *N )
   {
-    /*
-    I1. [Find position for new record.]
-    Invoke ChooseLeaf to select a leaf node L in which to place E.
+    while( N->parent() )
+    {
+      N->entry().first = N->calculate_bound();
+      N = N->parent();
+    }
+  }
+  void broadcast_new_bound( leaf_type *leaf )
+  {
+    if( leaf->parent() )
+    {
+      leaf->entry().first = leaf->calculate_bound();
+      broadcast_new_bound( leaf->parent() );
+    }
+  }
 
-    I2. [Add record to leaf node.] 
-    If L has room for another entry, install E.
-    Otherwise invoke SplitNode to obtain L and LL containing E and all the old entries of L.
-
-    I3. [Propagate changes upward.] 
-    Invoke AdjustTree on L, also passing LL if a split was performed.
-
-    I4. [Grow tree taller.]
-    If node split propagation caused the root to split, create a new root whose children are the two resulting nodes.
-    */
-    parent->add_child( bound, node );
+  // insert node to given parent
+  void insert_node( bound_type const& bound, node_base_type *node, node_type *parent )
+  {
+    parent->insert( {bound, node} );
     node_type *pair = nullptr;
 
     if( parent->size() > MAX_ENTRIES )
     {
       pair = split( parent );
     }
-    adjust_tree( parent );
+    broadcast_new_bound( parent );
     if( pair )
     {
       if( parent == _root )
       {
         node_type *new_root = new node_type;
-        new_root->add_child( parent->calculate_bound(), parent );
-        new_root->add_child( pair->calculate_bound(), pair );
+        new_root->insert( {parent->calculate_bound(), parent} );
+        new_root->insert( {pair->calculate_bound(), pair} );
         _root = new_root;
         ++_leaf_level;
       }else {
@@ -157,42 +178,56 @@ protected:
     }
   }
 
-  void adjust_tree( node_type *N )
+
+public:
+
+  void insert( value_type new_val )
   {
-    /*
-    AT1. [Initialize.] 
-    Set N=L. If L was split previously, set NN to be the resulting second node.
-
-    AT2. [Check if done.]
-    If N is the root, stop.
-
-    AT3. [Adjust covering rectangle in parent entry.]
-    Let P be the parent node of N, and let E_N be N's entry in P.
-    Adjust En.I so that it tightly encloses all entry rectangles in N.
-
-    AT4. [Propagate node split upward.]
-    If N has a partner NN resulting from an earlier split, create a new entry E_NN with E_NN.p pointing to NN and E_NN.I
-    enclosing all rectangles in NN. 
-    Add E_nn to P if there is room. 
-    Otherwise, invoke SplitNode to produce P and PP containing E_NN and all P’s old entries.
-
-    AT5. [Move up to next level.]
-    Set N=P and set NN=PP if a split occurred.
-    Repeat from AT2.
-    */
-    while( 1 )
+    leaf_type *chosen = reinterpret_cast<leaf_type*>(choose_insert_target( new_val.first, _leaf_level ));
+    chosen->insert( std::move(new_val) );
+    leaf_type *pair = nullptr;
+    if( chosen->size() > MAX_ENTRIES )
     {
-      if( N->parent() == nullptr ){ break; }
-      N->entry().first = N->calculate_bound();
-      N = N->parent();
+      pair = split( chosen );
+    }
+    broadcast_new_bound( chosen );
+    if( pair )
+    {
+      if( chosen->parent() == nullptr )
+      {
+        node_type *new_root = new node_type;
+        new_root->insert( {chosen->calculate_bound(), chosen} );
+        new_root->insert( {pair->calculate_bound(), pair} );
+        _root = new_root;
+        ++_leaf_level;
+      }else {
+        insert_node( pair->calculate_bound(), pair, chosen->parent() );
+      }
     }
   }
 
-  // node must be leaf node
-  void condense_tree( node_type *node )
+  void erase( iterator pos )
   {
-    std::vector< std::pair<int,node_type*> > reinsert_nodes;
-    for( int level=_leaf_level; level>0; --level )
+    leaf_type *leaf = pos._leaf;
+    leaf->_child.erase( leaf->_child.begin()+std::distance(leaf->_child.data(),pos._pointer) );
+
+    if( leaf == _root ){ return; }
+
+    // relative level from leaf, node's children will be reinserted later.
+    std::vector< std::pair<int,node_base_type*> > reinsert_nodes;
+
+    node_type *node = leaf->parent();
+    if( leaf->size() < MIN_ENTRIES )
+    {
+      // delete node from node's parent
+      node->erase_child( leaf );
+
+      // insert node to set
+      reinsert_nodes.emplace_back( 0, leaf );
+    }else {
+      leaf->entry().first = leaf->calculate_bound();
+    }
+    for( int level=_leaf_level-1; level>0; --level )
     {
       node_type *parent = node->parent();
       if( node->size() < MIN_ENTRIES )
@@ -208,46 +243,72 @@ protected:
     }
 
     // root adjustment
-    if( _root->size() == 1 && _leaf_level > 0 )
+    if( _leaf_level > 0 )
     {
-      node_type *child = _root->_child[0].second;
-      _root->erase_child( child );
-      delete _root;
-      _root = child;
-      --_leaf_level;
+      if( reinterpret_cast<node_type*>(_root)->size() == 1 )
+      {
+        node_base_type *child = reinterpret_cast<node_type*>(_root)->_child[0].second;
+        reinterpret_cast<node_type*>(_root)->erase_child( child );
+        delete reinterpret_cast<node_type*>(_root);
+        _root = child;
+        --_leaf_level;
+      }
     }
 
     // reinsert entries
     // sustain the relative level from leaf
     for( auto reinsert : reinsert_nodes )
     {
-      for( auto &c : *reinsert.second )
+      // leaf node
+      if( reinsert.first == 0 )
       {
-        node_type *chosen = choose_insert_parent( c.first, _leaf_level-reinsert.first );
-        insert_node( c.first, c.second, chosen );
+        for( auto &c : *reinterpret_cast<leaf_type*>(reinsert.second) )
+        {
+          insert( std::move( c ) );
+        }
+        delete reinterpret_cast<leaf_type*>(reinsert.second);
+      }else {
+        for( auto &c : *reinterpret_cast<node_type*>(reinsert.second) )
+        {
+          node_type *chosen = choose_insert_target( c.first, _leaf_level-reinsert.first );
+          insert_node( c.first, c.second, chosen );
+        }
+        delete reinterpret_cast<node_type*>(reinsert.second);
       }
-      delete reinsert.second;
     }
-
-
   }
-
-public:
 
   RTree()
   {
     init_root();
   }
+
+  // @TODO
+  // mapped_type copy-assignable
   RTree( RTree const& rhs )
   {
-    _root = rhs._root->clone_recursive();
-    _leaf_level = rhs._leaf_level;
+    if( rhs._leaf_level == 0 )
+    {
+      _root = reinterpret_cast<leaf_type*>(rhs._root)->clone_recursive();
+      _leaf_level = 0;
+    }else {
+      _root = reinterpret_cast<node_type*>(rhs._root)->clone_recursive(rhs._leaf_level);
+      _leaf_level = rhs._leaf_level;
+    }
   }
+  // @TODO
+  // mapped_type copy-assignable
   RTree& operator=( RTree const& rhs )
   {
     delete_if();
-    _root = rhs._root->clone_recursive();
-    _leaf_level = rhs._leaf_level;
+    if( rhs._leaf_level == 0 )
+    {
+      _root = reinterpret_cast<leaf_type*>(rhs._root)->clone_recursive();
+      _leaf_level = 0;
+    }else {
+      _root = reinterpret_cast<node_type*>(rhs._root)->clone_recursive(rhs._leaf_level);
+      _leaf_level = rhs._leaf_level;
+    }
     return *this;
   }
   RTree( RTree &&rhs )
@@ -269,70 +330,123 @@ public:
 
   iterator begin()
   {
-    node_type *n = _root;
+    node_type *n = reinterpret_cast<node_type*>(_root);
     for( int level=0; level<_leaf_level; ++level )
     {
-      n = n->_child[0].second;
+      n = reinterpret_cast<node_type*>(n->_child[0].second);
     }
-    if( n->empty() ){ return {nullptr}; }
-    return {n->_child[0].second};
+    if( reinterpret_cast<leaf_type*>(n)->empty() ){ return {}; }
+    return { 
+      &reinterpret_cast<leaf_type*>(n)->_child[0],
+      reinterpret_cast<leaf_type*>(n)
+    };
   }
   const_iterator cbegin() const
   {
-    node_type const* n = _root;
+    node_type const* n = reinterpret_cast<node_type const*>(_root);
     for( int level=0; level<_leaf_level; ++level )
     {
-      n = n->_child[0].second;
+      n = reinterpret_cast<node_type const*>(n->_child[0].second);
     }
-    if( n->empty() ){ return {nullptr}; }
-    return {n->_child[0].second};
+    if( reinterpret_cast<leaf_type const*>(n)->empty() ){ return {}; }
+    return { 
+      &reinterpret_cast<leaf_type const*>(n)->_child[0],
+      reinterpret_cast<leaf_type const*>(n)
+    };
   }
   const_iterator begin() const
   {
     return cbegin();
   }
 
-  iterator begin( int target_level )
-  {
-    node_type *n = _root;
-    for( int level=0; level<target_level; ++level )
-    {
-      n = n->_child[0].second;
-    }
-    return {n};
-  }
-  const_iterator cbegin( int target_level ) const
-  {
-    node_type const* n = _root;
-    for( int level=0; level<target_level; ++level )
-    {
-      n = n->_child[0].second;
-    }
-    return {n};
-  }
-  const_iterator begin( int target_level ) const
-  {
-    return cbegin( target_level );
-  }
   iterator end()
   {
-    return {nullptr};
+    return {};
   }
   const_iterator cend() const
   {
-    return {nullptr};
+    return {};
   }
   const_iterator end() const
   {
-    return cend();
+    return {};
   }
 
+  node_iterator begin( int level )
+  {
+    node_type *n = reinterpret_cast<node_type*>(_root);
+    for( int l=0; l<level; ++l )
+    {
+      n = reinterpret_cast<node_type*>(n->_child[0].second);
+    }
+    return { n };
+  }
+  const_node_iterator begin( int level ) const
+  {
+    node_type const* n = reinterpret_cast<node_type const*>(_root);
+    for( int l=0; l<level; ++l )
+    {
+      n = reinterpret_cast<node_type const*>(n->_child[0].second);
+    }
+    return { n };
+  }
+  const_node_iterator cbegin( int level ) const
+  {
+    return begin(level);
+  }
+
+  node_iterator end( int level )
+  {
+    return {};
+  }
+  const_node_iterator end( int level ) const
+  {
+    return {};
+  }
+  const_node_iterator cend( int level ) const
+  {
+    return {};
+  }
+
+  leaf_iterator leaf_begin()
+  {
+    node_type *n = reinterpret_cast<node_type*>(_root);
+    for( int l=0; l<_leaf_level; ++l )
+    {
+      n = reinterpret_cast<node_type*>(n->_child[0].second);
+    }
+    return { reinterpret_cast<leaf_type*>(n) };
+  }
+  const_leaf_iterator leaf_begin() const
+  {
+    node_type const* n = reinterpret_cast<node_type const*>(_root);
+    for( int l=0; l<_leaf_level; ++l )
+    {
+      n = reinterpret_cast<node_type const*>(n->_child[0].second);
+    }
+    return { reinterpret_cast<leaf_type const*>(n) };
+  }
+  const_leaf_iterator leaf_cbegin() const
+  {
+    return leaf_begin();
+  }
+  leaf_iterator leaf_end()
+  {
+    return {};
+  }
+  const_leaf_iterator leaf_end() const
+  {
+    return {};
+  }
+  const_leaf_iterator leaf_cend() const
+  {
+    return {};
+  }
 
   node_type *root() const
   {
     return _root;
   }
-
 
   int leaves_level() const
   {
@@ -340,37 +454,20 @@ public:
   }
 
 
-  // node must be data node;
-  // which is, node's level is leaf_level+1
-  void erase( node_type *node )
-  {
-    auto *parent = node->parent();
-    parent->erase_child( node );
-    condense_tree( parent );
-    delete node;
-  }
-
-  // insert new data to appropriate parent
-  void insert( bound_type const& bound, value_type val )
-  {
-    node_type *new_data_node = new node_type;
-    new_data_node->_data = std::move(val);
-    node_type *chosen = choose_insert_parent( bound, _leaf_level );
-    insert_node( bound, new_data_node, chosen );
-  }
 
 
   // split nodes 'as-is'
   struct just_split_t
   {
-    node_type *operator()( node_type *node ) const
+    template < typename NodeType >
+    NodeType *operator()( NodeType *node ) const
     {
-      node_type *new_node = new node_type;
-      for( int i=node->size()-MIN_ENTRIES; i<node->size(); ++i )
+      NodeType *new_node = new NodeType;
+      for( auto i=node->end()-MIN_ENTRIES; i!=node->end(); ++i )
       {
-        new_node->add_child( node->_child[i].first, node->_child[i].second );
+        new_node->insert( std::move(*i) );
       }
-      node->_child.erase( node->_child.end()-MIN_ENTRIES, node->_child.end() );
+      node->_child.erase( node->end()-MIN_ENTRIES, node->end() );
 
       return new_node;
     }
@@ -379,7 +476,9 @@ public:
   // quadratic split algorithm
   struct quadratic_split_t
   {
-    std::pair<typename node_type::child_iterator,typename node_type::child_iterator> pick_seed( node_type *node ) const
+    template < typename NodeType >
+    std::pair<typename NodeType::iterator,typename NodeType::iterator>
+    pick_seed( NodeType *node ) const
     {
       /*
       PS1. [Calculate inefficiency of grouping entries together.]
@@ -389,7 +488,7 @@ public:
       PS2. [Choose the most wasteful pair.]
       Choose the pair with the largest d.
       */
-      typename node_type::child_iterator n1 = node->end(), n2;
+      typename NodeType::iterator n1 = node->end(), n2;
       area_type max_wasted_area = LOWEST_AREA;
 
       // choose two nodes that would waste the most area if both were put in the same group
@@ -417,16 +516,13 @@ public:
           }
         }
       }
-      if( n1 == node->end() )
-      {
-        n1 = node->begin();
-        n2 = node->begin()+1;
-      }
+      assert( n1 != node->end() );
 
       return { n1, n2 };
     }
 
-    node_type* operator()( node_type *parent )
+    template < typename NodeType >
+    NodeType* operator()( NodeType *node ) const
     {
       /*
       QS1. [Pick first entry for each group.]
@@ -445,17 +541,17 @@ public:
       then to the one with fewer entries, then to either. 
       Repeat from QS2.
       */
-      std::vector<std::pair<bound_type,node_type*>> entry1, entry2;
-      
-      auto seeds = pick_seed( parent );
-      entry1.push_back( *seeds.first );
-      entry2.push_back( *seeds.second );
-      bound_type bound1 = seeds.first->first;
-      bound_type bound2 = seeds.second->first;
-      parent->_child.erase( seeds.second );
-      parent->_child.erase( seeds.first );
+      std::vector<typename NodeType::value_type> entry1, entry2;
 
-      while( parent->_child.empty() == false )
+      auto seeds = pick_seed( node );
+      entry1.push_back( std::move(*seeds.first) );
+      entry2.push_back( std::move(*seeds.second) );
+      bound_type bound1 = entry1.front().first;
+      bound_type bound2 = entry2.front().first;
+      node->_child.erase( seeds.second );
+      node->_child.erase( seeds.first );
+
+      while( node->_child.empty() == false )
       {
         /*
         PN1. [Determine cost of putting each entry in each group.]
@@ -467,21 +563,29 @@ public:
         Choose any entry with the maximum difference between d1 and d2.
         */
 
-        const auto old_node_count = parent->size();
+        const auto old_node_count = node->size();
         if( entry1.size() + old_node_count == MIN_ENTRIES )
         {
-          entry1.insert( entry1.end(), parent->begin(), parent->end() );
-          parent->_child.clear();
+          entry1.insert(
+            entry1.end(),
+            std::make_move_iterator(node->begin()),
+            std::make_move_iterator(node->end())
+          );
+          node->_child.clear();
         }else if( entry2.size() + old_node_count == MIN_ENTRIES )
         {
-          entry2.insert( entry2.end(), parent->begin(), parent->end() );
-          parent->_child.clear();
+          entry2.insert(
+            entry2.end(),
+            std::make_move_iterator(node->begin()),
+            std::make_move_iterator(node->end())
+          );
+          node->_child.clear();
         }else {
-          typename node_type::child_iterator picked = parent->end();
+          typename NodeType::iterator picked = node->end();
           int picked_to = 0;
           area_type maximum_difference = LOWEST_AREA;
 
-          for( auto ci=parent->begin(); ci!=parent->end(); ++ci )
+          for( auto ci=node->begin(); ci!=node->end(); ++ci )
           {
             const area_type d1 = bound1.merged( ci->first ).area() - bound1.area();
             const area_type d2 = bound2.merged( ci->first ).area() - bound2.area();
@@ -497,41 +601,44 @@ public:
 
           if( picked_to == 0 )
           {
-            entry1.push_back( *picked );
-            bound1 = bound1.merged( picked->first );
+            entry1.push_back( std::move(*picked) );
+            bound1 = bound1.merged( entry1.back().first );
           }else {
-            entry2.push_back( *picked );
-            bound2 = bound2.merged( picked->first );
+            entry2.push_back( std::move(*picked) );
+            bound2 = bound2.merged( entry2.back().first );
           }
 
-          parent->_child.erase( picked );
+          node->_child.erase( picked );
         }
       }
 
       for( auto &e1 : entry1 )
       {
-        parent->add_child( e1.first, e1.second );
+        node->insert( std::move(e1) );
       }
-      node_type *node_pair = new node_type;
+      NodeType *node_pair = new NodeType;
       for( auto &e2 : entry2 )
       {
-        node_pair->add_child( e2.first, e2.second );
+        node_pair->insert( std::move(e2) );
       }
 
       return node_pair;
     }
   };
 
+  // using splitter_t = just_split_t;
   using splitter_t = quadratic_split_t;
 
-  // 'parent' contains MAX_ENTRIES+1 nodes;
+  
+  // 'node' contains MAX_ENTRIES+1 nodes;
   // split into two nodes
   // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
-  node_type* split( node_type *parent )
+  template < typename NodeType >
+  NodeType* split( NodeType *node )
   {
     // @TODO another split scheme
     splitter_t spliter;
-    return spliter( parent );
+    return spliter( node );
   }
 };
 

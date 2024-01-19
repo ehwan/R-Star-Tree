@@ -1,7 +1,5 @@
 #include <RTree.hpp>
 
-#include <ios>
-#include <limits>
 #include <random>
 #include <iostream>
 
@@ -9,7 +7,7 @@ int main( int argc, char **argv )
 {
   using point_type = eh::rtree::point_t<double,2>;
   using bound_type = eh::rtree::bound_t<point_type>;
-  using rtree_type = eh::rtree::RTree< bound_type, int >;
+  using rtree_type = eh::rtree::RTree< bound_type, bound_type, int >;
 
   std::mt19937 mt_engine{ std::random_device{}() };
 
@@ -38,7 +36,7 @@ int main( int argc, char **argv )
     const double epsilon = 1e-6;
     point_type point = { r*std::cos(theta), r*std::sin(theta) };
 
-    rtree.insert( bound_type{point,point}, i+1 );
+    rtree.insert( {bound_type{point,point}, i+1} );
   }
 
   // print tree structures to stdout
@@ -46,34 +44,47 @@ int main( int argc, char **argv )
 
   output << rtree.leaves_level() << "\n";
 
-  std::vector<rtree_type::node_type*> bfs_nodes, bfs_pong;
-  int level = 0;
-  bfs_nodes.push_back( rtree.root() );
 
-  while( level <= rtree.leaves_level() )
+
+  for( int level=0; level<rtree.leaves_level(); ++level )
   {
-    bfs_pong.clear();
     int count = 0;
-    for( auto *n : bfs_nodes )
+    for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
     {
-      count += n->size();
+      rtree_type::node_type *node = *ni;
+      count += node->size();
     }
     output << count;
 
-    for( auto *n : bfs_nodes )
+    for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
     {
-      for( auto &c : *n )
+      rtree_type::node_type *node = *ni;
+
+      for( rtree_type::node_type::value_type &c : *node )
       {
         output << " " << c.first.min_bound()[0] << " " << c.first.min_bound()[1];
         output << " " << c.first.max_bound()[0] << " " << c.first.max_bound()[1];
-        bfs_pong.push_back( c.second );
       }
     }
     output << "\n";
-
-    std::swap( bfs_nodes, bfs_pong );
-    ++level;
   }
+  int count = 0;
+  for( auto ni=rtree.leaf_begin(); ni!=rtree.leaf_end(); ++ni )
+  {
+    rtree_type::leaf_type *leaf = *ni;
+    count += leaf->size();
+  }
+  output << count;
+  for( auto ni=rtree.leaf_begin(); ni!=rtree.leaf_end(); ++ni )
+  {
+    rtree_type::leaf_type *leaf = *ni;
+    for( rtree_type::leaf_type::value_type &c : *leaf )
+    {
+      output << " " << c.first.min_bound()[0] << " " << c.first.min_bound()[1];
+      output << " " << c.first.max_bound()[0] << " " << c.first.max_bound()[1];
+    }
+  }
+  output << "\n";
 
   return 0;
 }
