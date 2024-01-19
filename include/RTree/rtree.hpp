@@ -465,7 +465,7 @@ public:
   NodeType* split( NodeType *node )
   {
     // @TODO another split scheme
-    splitter_t spliter{ MIN_ENTRIES };
+    splitter_t spliter{ MIN_ENTRIES, MAX_ENTRIES };
     return spliter( node );
   }
 };
