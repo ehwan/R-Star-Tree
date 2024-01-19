@@ -155,7 +155,7 @@ protected:
   // insert node to given parent
   void insert_node( bound_type const& bound, node_base_type *node, node_type *parent )
   {
-    parent->add_child( bound, node );
+    parent->insert( {bound, node} );
     node_type *pair = nullptr;
 
     if( parent->size() > MAX_ENTRIES )
@@ -168,8 +168,8 @@ protected:
       if( parent == _root )
       {
         node_type *new_root = new node_type;
-        new_root->add_child( parent->calculate_bound(), parent );
-        new_root->add_child( pair->calculate_bound(), pair );
+        new_root->insert( {parent->calculate_bound(), parent} );
+        new_root->insert( {pair->calculate_bound(), pair} );
         _root = new_root;
         ++_leaf_level;
       }else {
@@ -196,8 +196,8 @@ public:
       if( chosen->parent() == nullptr )
       {
         node_type *new_root = new node_type;
-        new_root->add_child( chosen->calculate_bound(), chosen );
-        new_root->add_child( pair->calculate_bound(), pair );
+        new_root->insert( {chosen->calculate_bound(), chosen} );
+        new_root->insert( {pair->calculate_bound(), pair} );
         _root = new_root;
         ++_leaf_level;
       }else {
@@ -459,25 +459,15 @@ public:
   // split nodes 'as-is'
   struct just_split_t
   {
-    node_type *operator()( node_type *node ) const
+    template < typename NodeType >
+    NodeType *operator()( NodeType *node ) const
     {
-      node_type *new_node = new node_type;
-      for( auto i=node->_child.end()-MIN_ENTRIES; i!=node->_child.end(); ++i )
-      {
-        new_node->add_child( i->first, i->second );
-      }
-      node->_child.erase( node->_child.end()-MIN_ENTRIES, node->_child.end() );
-
-      return new_node;
-    }
-    leaf_type *operator()( leaf_type *node ) const
-    {
-      leaf_type *new_node = new leaf_type;
-      for( auto i=node->_child.end()-MIN_ENTRIES; i!=node->_child.end(); ++i )
+      NodeType *new_node = new NodeType;
+      for( auto i=node->end()-MIN_ENTRIES; i!=node->end(); ++i )
       {
         new_node->insert( std::move(*i) );
       }
-      node->_child.erase( node->_child.end()-MIN_ENTRIES, node->_child.end() );
+      node->_child.erase( node->end()-MIN_ENTRIES, node->end() );
 
       return new_node;
     }
@@ -636,6 +626,7 @@ public:
     }
   };
 
+  // using splitter_t = just_split_t;
   using splitter_t = quadratic_split_t;
 
   
