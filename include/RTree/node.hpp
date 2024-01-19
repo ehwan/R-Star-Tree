@@ -166,12 +166,21 @@ public:
   using const_iterator = typename decltype(_child)::const_iterator;
 
   // add child node with bounding box
+  // @TODO remove; use insert() instead
   void add_child( bound_type const& bound, node_base_type *node )
   {
     _child.emplace_back( bound, node );
     node->_parent = this;
     node->_index_on_parent = _child.size()-1;
   }
+  // add child node with bounding box
+  void insert( value_type child )
+  {
+    child.second->_parent = this;
+    child.second->_index_on_parent = _child.size();
+    _child.push_back( std::move(child) );
+  }
+
   void erase_child( node_base_type *node )
   {
     if( node->_index_on_parent < size()-1 )
