@@ -157,10 +157,9 @@ public:
   using mapped_type = MappedType;
   using value_type = std::pair<bound_type,node_base_type*>;
 
-protected:
+public:
   std::vector<value_type> _child;
 
-public:
   using iterator = typename decltype(_child)::iterator;
   using const_iterator = typename decltype(_child)::const_iterator;
 
@@ -171,8 +170,7 @@ public:
     child.second->_index_on_parent = _child.size();
     _child.push_back( std::move(child) );
   }
-
-  void erase_child( node_base_type *node )
+  void erase( node_base_type *node )
   {
     if( node->_index_on_parent < size()-1 )
     {
@@ -181,6 +179,10 @@ public:
     }
     node->_parent = nullptr;
     _child.pop_back();
+  }
+  void erase( iterator pos )
+  {
+    erase( pos->second );
   }
 
   // child count
@@ -317,10 +319,9 @@ public:
   using mapped_type = MappedType;
   using value_type = std::pair<key_type,mapped_type>;
 
-protected:
+public:
   std::vector<value_type> _child;
 
-public:
   using iterator = typename decltype(_child)::iterator;
   using const_iterator = typename decltype(_child)::const_iterator;
 
@@ -328,6 +329,14 @@ public:
   void insert( value_type child )
   {
     _child.push_back( std::move(child) );
+  }
+  void erase( iterator pos )
+  {
+    if( pos != _child.end()-1 )
+    {
+      *pos = std::move( _child.back() );
+    }
+    _child.pop_back();
   }
 
   // child count
