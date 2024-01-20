@@ -3,6 +3,7 @@
 #include <limits>
 #include <utility>
 #include <iterator>
+#include <cassert>
 
 #include "global.hpp"
 

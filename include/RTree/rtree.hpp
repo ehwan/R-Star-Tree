@@ -10,6 +10,7 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <cassert>
 
 #include "global.hpp"
 #include "iterator.hpp"
