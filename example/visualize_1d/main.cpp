@@ -5,7 +5,7 @@
 
 int main( int argc, char **argv )
 {
-  using bound_type = eh::rtree::bound_t<double>;
+  using bound_type = eh::rtree::aabb_t<double>;
   using rtree_type = eh::rtree::RTree< bound_type, bound_type, int >;
 
   std::mt19937 mt_engine{ std::random_device{}() };
@@ -34,9 +34,9 @@ int main( int argc, char **argv )
   // print tree structures to stdout
   std::ostream& output = std::cout;
 
-  output << rtree.leaves_level() << "\n";
+  output << rtree.leaf_level() << "\n";
 
-  for( int level=0; level<rtree.leaves_level(); ++level )
+  for( int level=0; level<rtree.leaf_level(); ++level )
   {
     int count = 0;
     for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
@@ -52,7 +52,7 @@ int main( int argc, char **argv )
 
       for( rtree_type::node_type::value_type &c : *node )
       {
-        output << " " << c.first.min_bound() << " " << c.first.max_bound();
+        output << " " << c.first.min_ << " " << c.first.max_;
       }
     }
     output << "\n";
@@ -69,7 +69,7 @@ int main( int argc, char **argv )
     rtree_type::leaf_type *leaf = *ni;
     for( rtree_type::leaf_type::value_type &c : *leaf )
     {
-      output << " " << c.first.min_bound() << " " << c.first.max_bound();
+      output << " " << c.first.min_ << " " << c.first.max_;
     }
   }
   output << "\n";

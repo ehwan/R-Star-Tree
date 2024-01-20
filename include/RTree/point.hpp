@@ -97,48 +97,6 @@ public:
   {
     return _data + size();
   }
-
-  // for all element
-  template < typename _ScalarType >
-  bool operator<( point_t<_ScalarType,Dim> const& rhs ) const
-  {
-    for( size_type i=0; i<size(); ++i )
-    {
-      if( _data[i] >= rhs[i] ){ return false; }
-    }
-    return true;
-  }
-  // for all element
-  template < typename _ScalarType >
-  bool operator<=( point_t<_ScalarType,Dim> const& rhs ) const
-  {
-    for( size_type i=0; i<size(); ++i )
-    {
-      if( _data[i] > rhs[i] ){ return false; }
-    }
-    return true;
-  }
 };
-
-template < typename ScalarType, unsigned int Dim >
-point_t<ScalarType,Dim> min( point_t<ScalarType,Dim> const& lhs, point_t<ScalarType,Dim> const& rhs )
-{
-  point_t<ScalarType,Dim> ret;
-  for( typename point_t<ScalarType,Dim>::size_type i=0; i<lhs.size(); ++i )
-  {
-    ret[i] = std::min( lhs[i], rhs[i] );
-  }
-  return ret;
-}
-template < typename ScalarType, unsigned int Dim >
-point_t<ScalarType,Dim> max( point_t<ScalarType,Dim> const& lhs, point_t<ScalarType,Dim> const& rhs )
-{
-  point_t<ScalarType,Dim> ret;
-  for( typename point_t<ScalarType,Dim>::size_type i=0; i<lhs.size(); ++i )
-  {
-    ret[i] = std::max( lhs[i], rhs[i] );
-  }
-  return ret;
-}
 
 }} // namespace eh, rtree

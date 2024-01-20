@@ -9,8 +9,9 @@ namespace er = eh::rtree;
 
 TEST( RTreeTest, Insert )
 {
-  using rtree_type = er::RTree<er::bound_t<int>,er::bound_t<int>,int>;
-  using bound_type = rtree_type::bound_type;
+  using rtree_type = er::RTree<er::aabb_t<int>,er::aabb_t<int>,int>;
+  using traits = rtree_type::traits;
+  using bound_type = rtree_type::geometry_type;
   using node_type = rtree_type::node_type;
 
 
@@ -26,7 +27,7 @@ TEST( RTreeTest, Insert )
     rtree.insert( {{min_,max_}, i} );
 
     // entries count check
-    for( int level=0; level<rtree.leaves_level(); ++level )
+    for( int level=0; level<rtree.leaf_level(); ++level )
     {
       for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
       {
@@ -39,14 +40,14 @@ TEST( RTreeTest, Insert )
     }
     for( auto ni=rtree.leaf_begin(); ni!=rtree.leaf_end(); ++ni )
     {
-      if( rtree.leaves_level() != 0 )
+      if( rtree.leaf_level() != 0 )
       {
         ASSERT_GE( ni->size(), rtree_type::MIN_ENTRIES ) << "leaf below MIN_ENTRIES";
       }
       ASSERT_LE( ni->size(), rtree_type::MAX_ENTRIES ) << "leaf above MAX_ENTRIES";
     }
     // entries bound check
-    for( int level=0; level<rtree.leaves_level(); ++level )
+    for( int level=0; level<rtree.leaf_level(); ++level )
     {
       for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
       {
@@ -55,15 +56,13 @@ TEST( RTreeTest, Insert )
         {
           ASSERT_EQ( c.second->parent(), node );
           auto a = c.first;
-          if( level+1==rtree.leaves_level() )
+          if( level+1==rtree.leaf_level() )
           {
             auto b = reinterpret_cast<rtree_type::leaf_type*>(c.second)->calculate_bound();
-            ASSERT_TRUE( a.is_inside(b) ) << "i: " << i << ", level: " << level << "\n"
-              << "entry: [" << a.min_bound() << "," << a.max_bound() << "], calc: [" << b.min_bound() << "," << b.max_bound() << "]";
+            ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }else {
             auto b = reinterpret_cast<node_type*>(c.second)->calculate_bound();
-            ASSERT_TRUE( a.is_inside(b) ) << "i: " << i << ", level: " << level << "\n"
-              << "entry: [" << a.min_bound() << "," << a.max_bound() << "], calc: [" << b.min_bound() << "," << b.max_bound() << "]";
+            ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }
         }
       }
@@ -85,8 +84,9 @@ TEST( RTreeTest, Insert )
 
 TEST( RTreeTest, Erase )
 {
-  using rtree_type = er::RTree<er::bound_t<int>,er::bound_t<int>,int>;
-  using bound_type = rtree_type::bound_type;
+  using rtree_type = er::RTree<er::aabb_t<int>,er::aabb_t<int>,int>;
+  using traits = rtree_type::traits;
+  using bound_type = rtree_type::geometry_type;
   using node_type = rtree_type::node_type;
 
 
@@ -116,7 +116,7 @@ TEST( RTreeTest, Erase )
     rtree.erase( it );
 
     // entries count check
-    for( int level=0; level<rtree.leaves_level(); ++level )
+    for( int level=0; level<rtree.leaf_level(); ++level )
     {
       for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
       {
@@ -129,7 +129,7 @@ TEST( RTreeTest, Erase )
     }
     for( auto ni=rtree.leaf_begin(); ni!=rtree.leaf_end(); ++ni )
     {
-      if( rtree.leaves_level() != 0 )
+      if( rtree.leaf_level() != 0 )
       {
         ASSERT_GE( ni->size(), rtree_type::MIN_ENTRIES ) << "leaf below MIN_ENTRIES";
       }
@@ -137,7 +137,7 @@ TEST( RTreeTest, Erase )
     }
 
     // entries bound check
-    for( int level=0; level<rtree.leaves_level(); ++level )
+    for( int level=0; level<rtree.leaf_level(); ++level )
     {
       for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
       {
@@ -146,15 +146,13 @@ TEST( RTreeTest, Erase )
         {
           ASSERT_EQ( c.second->parent(), node );
           auto a = c.first;
-          if( level+1==rtree.leaves_level() )
+          if( level+1==rtree.leaf_level() )
           {
             auto b = reinterpret_cast<rtree_type::leaf_type*>(c.second)->calculate_bound();
-            ASSERT_TRUE( a.is_inside(b) ) << "i: " << i << ", level: " << level << "\n"
-              << "entry: [" << a.min_bound() << "," << a.max_bound() << "], calc: [" << b.min_bound() << "," << b.max_bound() << "]";
+            ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }else {
             auto b = reinterpret_cast<node_type*>(c.second)->calculate_bound();
-            ASSERT_TRUE( a.is_inside(b) ) << "i: " << i << ", level: " << level << "\n"
-              << "entry: [" << a.min_bound() << "," << a.max_bound() << "], calc: [" << b.min_bound() << "," << b.max_bound() << "]";
+            ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }
         }
       }

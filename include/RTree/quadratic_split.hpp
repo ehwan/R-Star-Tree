@@ -3,6 +3,7 @@
 #include <limits>
 #include <utility>
 #include <iterator>
+#include <cassert>
 
 #include "global.hpp"
 
@@ -13,7 +14,8 @@ template < typename BoundType >
 struct quadratic_split_t
 {
   using bound_type = BoundType;
-  using area_type = typename bound_type::area_type;
+  using traits = geometry_traits<bound_type>;
+  using area_type = typename geometry_traits<bound_type>::area_type;
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
   unsigned int MIN_ENTRIES = 4;
@@ -39,8 +41,8 @@ struct quadratic_split_t
     {
       for( auto cj=ci+1; cj!=node->end(); ++cj )
       {
-        const auto J = ci->first.merged( cj->first );
-        const area_type wasted_area = J.area() - ci->first.area() - cj->first.area();
+        const auto J = traits::merge(ci->first, cj->first);
+        const area_type wasted_area = traits::area(J) - traits::area(ci->first) - traits::area(cj->first);
 
         if( wasted_area > max_wasted_area )
         {
@@ -51,7 +53,8 @@ struct quadratic_split_t
         // if same wasted area, choose pair with small intersection area
         else if( wasted_area == max_wasted_area )
         {
-          if( ci->first.intersection(cj->first).area() < n1->first.intersection(n2->first).area() )
+          if( traits::area(traits::intersection(ci->first,cj->first)) <
+              traits::area(traits::intersection(n1->first,n2->first)) )
           {
             n1 = ci;
             n2 = cj;
@@ -130,8 +133,10 @@ struct quadratic_split_t
 
         for( auto ci=node->begin(); ci!=node->end(); ++ci )
         {
-          const area_type d1 = bound1.merged( ci->first ).area() - bound1.area();
-          const area_type d2 = bound2.merged( ci->first ).area() - bound2.area();
+          const area_type d1 = 
+            traits::area( traits::merge(bound1,ci->first) ) - traits::area(bound1);
+          const area_type d2 = 
+            traits::area( traits::merge(bound2,ci->first) ) - traits::area(bound2);
           const auto diff = std::abs(d1 - d2);
 
           if( diff > maximum_difference )
@@ -145,10 +150,10 @@ struct quadratic_split_t
         if( picked_to == 0 )
         {
           entry1.push_back( std::move(*picked) );
-          bound1 = bound1.merged( entry1.back().first );
+          bound1 = traits::merge( bound1, entry1.back().first );
         }else {
           entry2.push_back( std::move(*picked) );
-          bound2 = bound2.merged( entry2.back().first );
+          bound2 = traits::merge( bound2, entry2.back().first );
         }
 
         node->_child.erase( picked );

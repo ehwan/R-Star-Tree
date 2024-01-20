@@ -10,6 +10,7 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <cassert>
 
 #include "global.hpp"
 #include "iterator.hpp"
@@ -19,26 +20,24 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-template < typename BoundType, typename KeyType, typename MappedType >
+template < typename GeometryType, typename KeyType, typename MappedType >
 class RTree
 {
+  using node_base_type = node_base_t<GeometryType,KeyType,MappedType>;
 public:
-  using node_base_type = node_base_t<BoundType,KeyType,MappedType>;
-  using node_type = node_t<BoundType,KeyType,MappedType>;
-  using leaf_type = leaf_node_t<BoundType,KeyType,MappedType>;
+  using node_type = node_t<GeometryType,KeyType,MappedType>;
+  using leaf_type = leaf_node_t<GeometryType,KeyType,MappedType>;
 
   using size_type = unsigned int;
 
-  using bound_type = BoundType;
+  using geometry_type = GeometryType;
+  using traits = geometry_traits<GeometryType>;
   using key_type = KeyType;
   using mapped_type = MappedType;
-
   using value_type = std::pair<key_type, mapped_type>;
 
-  using point_type = typename bound_type::point_type;
-
   // type for area
-  using area_type = typename bound_type::area_type;
+  using area_type = typename geometry_traits<geometry_type>::area_type;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
@@ -93,7 +92,7 @@ protected:
 
 
   // search for appropriate node in target_level to insert bound
-  node_type *choose_insert_target( bound_type const& bound, int target_level )
+  node_type *choose_insert_target( geometry_type const& bound, int target_level )
   {
     assert( target_level <= _leaf_level );
     /*
@@ -119,14 +118,15 @@ protected:
 
       for( auto ci=n->begin(); ci!=n->end(); ++ci )
       {
-        const auto area_enlarge = ci->first.merged(bound).area() - ci->first.area();
+        const auto area_enlarge = 
+          traits::area( traits::merge(ci->first,bound) ) - traits::area(ci->first);
         if( area_enlarge < min_area_enlarge )
         {
           min_area_enlarge = area_enlarge;
           chosen = ci;
         }else if( area_enlarge == min_area_enlarge )
         {
-          if( ci->first.area() < chosen->first.area() )
+          if( traits::area(ci->first) < traits::area(chosen->first) )
           {
             chosen = ci;
           }
@@ -155,7 +155,7 @@ protected:
   }
 
   // insert node to given parent
-  void insert_node( bound_type const& bound, node_base_type *node, node_type *parent )
+  void insert_node( geometry_type const& bound, node_base_type *node, node_type *parent )
   {
     parent->insert( {bound, node} );
     node_type *pair = nullptr;
@@ -178,6 +178,20 @@ protected:
         insert_node( pair->calculate_bound(), pair, parent->parent() );
       }
     }
+  }
+
+  // using splitter_t = sequence_split_t
+  using splitter_t = quadratic_split_t<geometry_type>;
+  
+  // 'node' contains MAX_ENTRIES+1 nodes;
+  // split into two nodes
+  // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
+  template < typename NodeType >
+  NodeType* split( NodeType *node )
+  {
+    // @TODO another split scheme
+    splitter_t spliter{ MIN_ENTRIES, MAX_ENTRIES };
+    return spliter( node );
   }
 
 
@@ -450,24 +464,11 @@ public:
     return _root;
   }
 
-  int leaves_level() const
+  int leaf_level() const
   {
     return _leaf_level;
   }
 
-  // using splitter_t = sequence_split_t
-  using splitter_t = quadratic_split_t<bound_type>;
-  
-  // 'node' contains MAX_ENTRIES+1 nodes;
-  // split into two nodes
-  // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
-  template < typename NodeType >
-  NodeType* split( NodeType *node )
-  {
-    // @TODO another split scheme
-    splitter_t spliter{ MIN_ENTRIES };
-    return spliter( node );
-  }
 };
 
 

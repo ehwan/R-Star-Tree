@@ -1,3 +1,4 @@
+#include "RTree/aabb.hpp"
 #include <RTree.hpp>
 
 #include <random>
@@ -6,8 +7,8 @@
 int main( int argc, char **argv )
 {
   using point_type = eh::rtree::point_t<double,2>;
-  using bound_type = eh::rtree::bound_t<point_type>;
-  using rtree_type = eh::rtree::RTree< bound_type, bound_type, int >;
+  using aabb_type = eh::rtree::aabb_t<point_type>;
+  using rtree_type = eh::rtree::RTree< aabb_type, aabb_type, int >;
 
   std::mt19937 mt_engine{ std::random_device{}() };
 
@@ -36,17 +37,17 @@ int main( int argc, char **argv )
     const double epsilon = 1e-6;
     point_type point = { r*std::cos(theta), r*std::sin(theta) };
 
-    rtree.insert( {bound_type{point,point}, i+1} );
+    rtree.insert( {aabb_type{point,point}, i+1} );
   }
 
   // print tree structures to stdout
   std::ostream& output = std::cout;
 
-  output << rtree.leaves_level() << "\n";
+  output << rtree.leaf_level() << "\n";
 
 
 
-  for( int level=0; level<rtree.leaves_level(); ++level )
+  for( int level=0; level<rtree.leaf_level(); ++level )
   {
     int count = 0;
     for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
@@ -62,8 +63,8 @@ int main( int argc, char **argv )
 
       for( rtree_type::node_type::value_type &c : *node )
       {
-        output << " " << c.first.min_bound()[0] << " " << c.first.min_bound()[1];
-        output << " " << c.first.max_bound()[0] << " " << c.first.max_bound()[1];
+        output << " " << c.first.min_[0] << " " << c.first.min_[1];
+        output << " " << c.first.max_[0] << " " << c.first.max_[1];
       }
     }
     output << "\n";
@@ -80,8 +81,8 @@ int main( int argc, char **argv )
     rtree_type::leaf_type *leaf = *ni;
     for( rtree_type::leaf_type::value_type &c : *leaf )
     {
-      output << " " << c.first.min_bound()[0] << " " << c.first.min_bound()[1];
-      output << " " << c.first.max_bound()[0] << " " << c.first.max_bound()[1];
+      output << " " << c.first.min_[0] << " " << c.first.min_[1];
+      output << " " << c.first.max_[0] << " " << c.first.max_[1];
     }
   }
   output << "\n";
