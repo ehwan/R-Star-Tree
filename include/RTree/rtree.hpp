@@ -23,21 +23,21 @@ namespace eh { namespace rtree {
 template < typename GeometryType, typename KeyType, typename MappedType >
 class RTree
 {
-public:
   using node_base_type = node_base_t<GeometryType,KeyType,MappedType>;
+public:
   using node_type = node_t<GeometryType,KeyType,MappedType>;
   using leaf_type = leaf_node_t<GeometryType,KeyType,MappedType>;
 
   using size_type = unsigned int;
 
-  using bound_type = GeometryType;
-  using traits = geometry_traits<bound_type>;
+  using geometry_type = GeometryType;
+  using traits = geometry_traits<GeometryType>;
   using key_type = KeyType;
   using mapped_type = MappedType;
   using value_type = std::pair<key_type, mapped_type>;
 
   // type for area
-  using area_type = typename geometry_traits<bound_type>::area_type;
+  using area_type = typename geometry_traits<geometry_type>::area_type;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
@@ -92,7 +92,7 @@ protected:
 
 
   // search for appropriate node in target_level to insert bound
-  node_type *choose_insert_target( bound_type const& bound, int target_level )
+  node_type *choose_insert_target( geometry_type const& bound, int target_level )
   {
     assert( target_level <= _leaf_level );
     /*
@@ -155,7 +155,7 @@ protected:
   }
 
   // insert node to given parent
-  void insert_node( bound_type const& bound, node_base_type *node, node_type *parent )
+  void insert_node( geometry_type const& bound, node_base_type *node, node_type *parent )
   {
     parent->insert( {bound, node} );
     node_type *pair = nullptr;
@@ -181,7 +181,7 @@ protected:
   }
 
   // using splitter_t = sequence_split_t
-  using splitter_t = quadratic_split_t<bound_type>;
+  using splitter_t = quadratic_split_t<geometry_type>;
   
   // 'node' contains MAX_ENTRIES+1 nodes;
   // split into two nodes
@@ -464,7 +464,7 @@ public:
     return _root;
   }
 
-  int leaves_level() const
+  int leaf_level() const
   {
     return _leaf_level;
   }

@@ -42,11 +42,11 @@ int main( int argc, char **argv )
   // print tree structures to stdout
   std::ostream& output = std::cout;
 
-  output << rtree.leaves_level() << "\n";
+  output << rtree.leaf_level() << "\n";
 
 
 
-  for( int level=0; level<rtree.leaves_level(); ++level )
+  for( int level=0; level<rtree.leaf_level(); ++level )
   {
     int count = 0;
     for( auto ni=rtree.begin(level); ni!=rtree.end(level); ++ni )
