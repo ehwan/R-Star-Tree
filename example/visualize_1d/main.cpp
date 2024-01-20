@@ -6,7 +6,7 @@
 int main( int argc, char **argv )
 {
   using bound_type = eh::rtree::aabb_t<double>;
-  using rtree_type = eh::rtree::RTree< bound_type, bound_type, int >;
+  using rtree_type = eh::rtree::RTree< bound_type, double, int >;
 
   std::mt19937 mt_engine{ std::random_device{}() };
 
@@ -28,7 +28,7 @@ int main( int argc, char **argv )
   {
     double point = normal_distribute(mt_engine);
 
-    rtree.insert( {{point,point}, i+1} );
+    rtree.insert( {point, i+1} );
   }
 
   // print tree structures to stdout
@@ -69,7 +69,7 @@ int main( int argc, char **argv )
     rtree_type::leaf_type *leaf = *ni;
     for( rtree_type::leaf_type::value_type &c : *leaf )
     {
-      output << " " << c.first.min_ << " " << c.first.max_;
+      output << " " << c.first;
     }
   }
   output << "\n";

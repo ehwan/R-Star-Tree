@@ -8,7 +8,7 @@ int main( int argc, char **argv )
 {
   using point_type = eh::rtree::point_t<double,2>;
   using aabb_type = eh::rtree::aabb_t<point_type>;
-  using rtree_type = eh::rtree::RTree< aabb_type, aabb_type, int >;
+  using rtree_type = eh::rtree::RTree< aabb_type, point_type, int >;
 
   std::mt19937 mt_engine{ std::random_device{}() };
 
@@ -37,7 +37,7 @@ int main( int argc, char **argv )
     const double epsilon = 1e-6;
     point_type point = { r*std::cos(theta), r*std::sin(theta) };
 
-    rtree.insert( {aabb_type{point,point}, i+1} );
+    rtree.insert( {point, i+1} );
   }
 
   // print tree structures to stdout
@@ -81,8 +81,7 @@ int main( int argc, char **argv )
     rtree_type::leaf_type *leaf = *ni;
     for( rtree_type::leaf_type::value_type &c : *leaf )
     {
-      output << " " << c.first.min_[0] << " " << c.first.min_[1];
-      output << " " << c.first.max_[0] << " " << c.first.max_[1];
+      output << " " << c.first[0] << " " << c.first[1];
     }
   }
   output << "\n";

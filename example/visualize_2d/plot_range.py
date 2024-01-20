@@ -25,8 +25,8 @@ def parse_tree_file( file_path ):
     rangecount = int(str_values[0])
     nodes = []
     for i in range(rangecount):
-      a0 = float(str_values[4*i+1])
-      a1 = float(str_values[4*i+2])
+      a0 = float(str_values[2*i+1])
+      a1 = float(str_values[2*i+2])
       nodes.insert( len(nodes), [a0, a1] )
     tree.insert( len(tree), nodes )
   return tree
