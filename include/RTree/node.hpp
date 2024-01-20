@@ -55,6 +55,23 @@ public:
     return parent()->_child[ _index_on_parent ];
   }
 
+  node_type *as_node()
+  {
+    return reinterpret_cast<node_type*>( this );
+  }
+  node_type const* as_node() const
+  {
+    return reinterpret_cast<node_type const*>( this );
+  }
+  leaf_type *as_leaf()
+  {
+    return reinterpret_cast<leaf_type*>( this );
+  }
+  leaf_type const* as_leaf() const
+  {
+    return reinterpret_cast<leaf_type const*>( this );
+  }
+
   // get next node on same level
   // this would return node across different parent
   // if it is last node, return nullptr

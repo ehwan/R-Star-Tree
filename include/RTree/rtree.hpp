@@ -469,6 +469,72 @@ public:
     return _leaf_level;
   }
 
+protected:
+  template < typename _GeometryType, typename Functor >
+  bool search_overlap_wrapper( node_type *node, int leaf, _GeometryType const& search_range, Functor functor )
+  {
+    if( leaf == 0 )
+    {
+      if( search_overlap_leaf_wrapper(node->as_leaf(), search_range, functor) ){ return true; }
+    }else {
+      for( auto &c : *node )
+      {
+        if( traits::is_overlap(c.first, search_range) == false ){ continue; }
+        if( search_overlap_wrapper( c.second->as_node(), leaf-1, search_range, functor ) ){ return true; }
+      }
+    }
+    return false;
+  }
+
+  template < typename _GeometryType, typename Functor >
+  bool search_inside_wrapper( node_type *node, int leaf, _GeometryType const& search_range, Functor functor )
+  {
+    if( leaf == 0 )
+    {
+      if( search_inside_leaf_wrapper(node->as_leaf(), search_range, functor) ){ return true; }
+    }else {
+      for( auto &c : *node )
+      {
+        if( traits::is_overlap(c.first, search_range) == false ){ continue; }
+        if( search_inside_wrapper( c.second->as_node(), leaf-1, search_range, functor ) ){ return true; }
+      }
+    }
+    return false;
+  }
+  template < typename _GeometryType, typename Functor >
+  bool search_overlap_leaf_wrapper( leaf_type *node, _GeometryType const& search_range, Functor functor )
+  {
+    for( auto &c : *node )
+    {
+      if( traits::is_overlap(c.first, search_range) == false ){ continue; }
+      if( functor( c ) ){ return true; }
+    }
+    return false;
+  }
+  template < typename _GeometryType, typename Functor >
+  bool search_inside_leaf_wrapper( leaf_type *node, _GeometryType const& search_range, Functor functor )
+  {
+    for( auto &c : *node )
+    {
+      if( traits::is_inside(search_range, c.first) == false ){ continue; }
+      if( functor( c ) ){ return true; }
+    }
+    return false;
+  }
+
+public:
+
+  template < typename _GeometryType, typename Functor >
+  void search_inside( _GeometryType const& search_range, Functor functor )
+  {
+    search_inside_wrapper( _root->as_node(), _leaf_level, search_range, functor );
+  }
+  template < typename _GeometryType, typename Functor >
+  void search_overlap( _GeometryType const& search_range, Functor functor )
+  {
+    search_overlap_wrapper( _root->as_node(), _leaf_level, search_range, functor );
+  }
+
 };
 
 
