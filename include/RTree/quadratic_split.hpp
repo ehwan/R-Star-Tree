@@ -14,8 +14,8 @@ template < typename BoundType >
 struct quadratic_split_t
 {
   using bound_type = BoundType;
-  using traits = bound_traits<bound_type>;
-  using area_type = typename bound_traits<bound_type>::area_type;
+  using traits = geometry_traits<bound_type>;
+  using area_type = typename geometry_traits<bound_type>::area_type;
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
   unsigned int MIN_ENTRIES = 4;

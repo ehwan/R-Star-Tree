@@ -20,27 +20,24 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-template < typename BoundType, typename KeyType, typename MappedType >
+template < typename GeometryType, typename KeyType, typename MappedType >
 class RTree
 {
 public:
-  using node_base_type = node_base_t<BoundType,KeyType,MappedType>;
-  using node_type = node_t<BoundType,KeyType,MappedType>;
-  using leaf_type = leaf_node_t<BoundType,KeyType,MappedType>;
+  using node_base_type = node_base_t<GeometryType,KeyType,MappedType>;
+  using node_type = node_t<GeometryType,KeyType,MappedType>;
+  using leaf_type = leaf_node_t<GeometryType,KeyType,MappedType>;
 
   using size_type = unsigned int;
 
-  using bound_type = BoundType;
-  using traits = bound_traits<bound_type>;
+  using bound_type = GeometryType;
+  using traits = geometry_traits<bound_type>;
   using key_type = KeyType;
   using mapped_type = MappedType;
-
   using value_type = std::pair<key_type, mapped_type>;
 
-  using point_type = typename bound_type::point_type;
-
   // type for area
-  using area_type = typename bound_traits<bound_type>::area_type;
+  using area_type = typename geometry_traits<bound_type>::area_type;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
@@ -181,6 +178,20 @@ protected:
         insert_node( pair->calculate_bound(), pair, parent->parent() );
       }
     }
+  }
+
+  // using splitter_t = sequence_split_t
+  using splitter_t = quadratic_split_t<bound_type>;
+  
+  // 'node' contains MAX_ENTRIES+1 nodes;
+  // split into two nodes
+  // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
+  template < typename NodeType >
+  NodeType* split( NodeType *node )
+  {
+    // @TODO another split scheme
+    splitter_t spliter{ MIN_ENTRIES, MAX_ENTRIES };
+    return spliter( node );
   }
 
 
@@ -458,19 +469,6 @@ public:
     return _leaf_level;
   }
 
-  // using splitter_t = sequence_split_t
-  using splitter_t = quadratic_split_t<bound_type>;
-  
-  // 'node' contains MAX_ENTRIES+1 nodes;
-  // split into two nodes
-  // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
-  template < typename NodeType >
-  NodeType* split( NodeType *node )
-  {
-    // @TODO another split scheme
-    splitter_t spliter{ MIN_ENTRIES, MAX_ENTRIES };
-    return spliter( node );
-  }
 };
 
 

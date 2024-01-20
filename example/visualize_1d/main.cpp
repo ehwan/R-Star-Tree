@@ -5,7 +5,7 @@
 
 int main( int argc, char **argv )
 {
-  using bound_type = eh::rtree::bound_t<double>;
+  using bound_type = eh::rtree::aabb_t<double>;
   using rtree_type = eh::rtree::RTree< bound_type, bound_type, int >;
 
   std::mt19937 mt_engine{ std::random_device{}() };
@@ -52,7 +52,7 @@ int main( int argc, char **argv )
 
       for( rtree_type::node_type::value_type &c : *node )
       {
-        output << " " << c.first.min_bound() << " " << c.first.max_bound();
+        output << " " << c.first.min_ << " " << c.first.max_;
       }
     }
     output << "\n";
@@ -69,7 +69,7 @@ int main( int argc, char **argv )
     rtree_type::leaf_type *leaf = *ni;
     for( rtree_type::leaf_type::value_type &c : *leaf )
     {
-      output << " " << c.first.min_bound() << " " << c.first.max_bound();
+      output << " " << c.first.min_ << " " << c.first.max_;
     }
   }
   output << "\n";
