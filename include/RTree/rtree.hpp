@@ -31,6 +31,7 @@ public:
   using size_type = unsigned int;
 
   using bound_type = BoundType;
+  using traits = bound_traits<bound_type>;
   using key_type = KeyType;
   using mapped_type = MappedType;
 
@@ -39,7 +40,7 @@ public:
   using point_type = typename bound_type::point_type;
 
   // type for area
-  using area_type = typename bound_type::area_type;
+  using area_type = typename bound_traits<bound_type>::area_type;
   constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
@@ -120,14 +121,15 @@ protected:
 
       for( auto ci=n->begin(); ci!=n->end(); ++ci )
       {
-        const auto area_enlarge = ci->first.merged(bound).area() - ci->first.area();
+        const auto area_enlarge = 
+          traits::area( traits::merge(ci->first,bound) ) - traits::area(ci->first);
         if( area_enlarge < min_area_enlarge )
         {
           min_area_enlarge = area_enlarge;
           chosen = ci;
         }else if( area_enlarge == min_area_enlarge )
         {
-          if( ci->first.area() < chosen->first.area() )
+          if( traits::area(ci->first) < traits::area(chosen->first) )
           {
             chosen = ci;
           }

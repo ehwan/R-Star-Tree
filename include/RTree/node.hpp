@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <utility>
+#include <cassert>
 
 #include "global.hpp"
 
@@ -222,7 +223,7 @@ public:
     bound_type merged = _child[0].first;
     for( int i=1; i<_child.size(); ++i )
     {
-      merged = merged.merged( _child[i].first );
+      merged = bound_traits<bound_type>::merge( merged, _child[i].first );
     }
     return merged;
   }
@@ -376,7 +377,7 @@ public:
     bound_type merged = _child[0].first;
     for( int i=1; i<_child.size(); ++i )
     {
-      merged = merged.merged( _child[i].first );
+      merged = bound_traits<bound_type>::merge( merged, _child[i].first );
     }
     return merged;
   }

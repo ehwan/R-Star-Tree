@@ -3,6 +3,7 @@
 namespace eh { namespace rtree {
 
 // default traits
+// for custom point type, must implement functions below
 template < typename PointType >
 struct point_traits
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RTree/point_traits.hpp"
+#include "RTree/bound_traits.hpp"
 #include "RTree/point.hpp"
 #include "RTree/bound.hpp"
 #include "RTree/iterator.hpp"
