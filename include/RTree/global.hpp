@@ -2,6 +2,9 @@
 
 namespace eh { namespace rtree {
 
+template < typename PointType >
+struct point_traits;
+
 template < typename BoundType, typename KeyType, typename MappedType >
 class node_base_t;
 template < typename BoundType, typename KeyType, typename MappedType >

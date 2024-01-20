@@ -97,48 +97,58 @@ public:
   {
     return _data + size();
   }
-
-  // for all element
-  template < typename _ScalarType >
-  bool operator<( point_t<_ScalarType,Dim> const& rhs ) const
-  {
-    for( size_type i=0; i<size(); ++i )
-    {
-      if( _data[i] >= rhs[i] ){ return false; }
-    }
-    return true;
-  }
-  // for all element
-  template < typename _ScalarType >
-  bool operator<=( point_t<_ScalarType,Dim> const& rhs ) const
-  {
-    for( size_type i=0; i<size(); ++i )
-    {
-      if( _data[i] > rhs[i] ){ return false; }
-    }
-    return true;
-  }
 };
 
 template < typename ScalarType, unsigned int Dim >
-point_t<ScalarType,Dim> min( point_t<ScalarType,Dim> const& lhs, point_t<ScalarType,Dim> const& rhs )
+struct point_traits< point_t<ScalarType,Dim> >
 {
-  point_t<ScalarType,Dim> ret;
-  for( typename point_t<ScalarType,Dim>::size_type i=0; i<lhs.size(); ++i )
+  using point_type = point_t<ScalarType,Dim>;
+  using area_type = ScalarType;
+
+  static bool less_than( point_type const& lhs, point_type const& rhs )
   {
-    ret[i] = std::min( lhs[i], rhs[i] );
+    for( unsigned int i=0; i<Dim; ++i )
+    {
+      if( lhs[i] >= rhs[i] ){ return false; }
+    }
+    return true;
   }
-  return ret;
-}
-template < typename ScalarType, unsigned int Dim >
-point_t<ScalarType,Dim> max( point_t<ScalarType,Dim> const& lhs, point_t<ScalarType,Dim> const& rhs )
-{
-  point_t<ScalarType,Dim> ret;
-  for( typename point_t<ScalarType,Dim>::size_type i=0; i<lhs.size(); ++i )
+  static bool less_equal( point_type const& lhs, point_type const& rhs )
   {
-    ret[i] = std::max( lhs[i], rhs[i] );
+    for( unsigned int i=0; i<Dim; ++i )
+    {
+      if( lhs[i] > rhs[i] ){ return false; }
+    }
+    return true;
   }
-  return ret;
-}
+  static point_type min( point_type const& lhs, point_type const& rhs )
+  {
+    point_type ret;
+    for( unsigned int i=0; i<Dim; ++i )
+    {
+      ret[i] = std::min( lhs[i], rhs[i] );
+    }
+    return ret;
+  }
+  static point_type max( point_type const& lhs, point_type const& rhs )
+  {
+    point_type ret;
+    for( unsigned int i=0; i<Dim; ++i )
+    {
+      ret[i] = std::max( lhs[i], rhs[i] );
+    }
+    return ret;
+  }
+
+  static area_type area( point_type const& min_, point_type const& max_ )
+  {
+    area_type ret = 1;
+    for( unsigned int i=0; i<Dim; ++i )
+    {
+      ret *= (max_[i] - min_[i]);
+    }
+    return ret;
+  }
+};
 
 }} // namespace eh, rtree
