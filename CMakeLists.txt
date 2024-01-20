@@ -30,13 +30,13 @@ target_include_directories( visualize_1d PUBLIC
   ./include
 )
 
-# project( visualize_2d CXX )
-# add_executable( visualize_2d
-#   example/visualize_2d/main.cpp
-# )
-# set_target_properties( visualize_2d PROPERTIES
-#   CXX_STANDARD 17
-# )
-# target_include_directories( visualize_2d PUBLIC
-#   ./include
-# )
+project( visualize_2d CXX )
+add_executable( visualize_2d
+  example/visualize_2d/main.cpp
+)
+set_target_properties( visualize_2d PROPERTIES
+  CXX_STANDARD 17
+)
+target_include_directories( visualize_2d PUBLIC
+  ./include
+)
