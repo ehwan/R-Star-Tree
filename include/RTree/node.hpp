@@ -262,6 +262,24 @@ struct node_t
     }
     return new_node;
   }
+  size_type size_recursive( int leaf_level ) const
+  {
+    size_type ret = 0;
+    if( leaf_level == 1 )
+    {
+      // child is leaf node
+      for( auto &c : *this )
+      {
+        ret += c.second->as_leaf()->size_recursive();
+      }
+    }else {
+      for( auto &c : *this )
+      {
+        ret += c.second->as_node()->size_recursive( leaf_level-1 );
+      }
+    }
+    return ret;
+  }
 
   node_type* next()
   {
@@ -371,6 +389,10 @@ struct leaf_node_t
     leaf_type *new_node = new leaf_type;
     new_node->_child = _child;
     return new_node;
+  }
+  size_type size_recursive() const
+  {
+    return size();
   }
 
   leaf_type* next()

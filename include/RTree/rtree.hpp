@@ -295,6 +295,16 @@ public:
     }
   }
 
+  size_type size() const
+  {
+    if( _leaf_level == 0 )
+    {
+      return _root->as_leaf()->size_recursive();
+    }else {
+      return _root->as_node()->size_recursive( _leaf_level );
+    }
+  }
+
   RTree()
   {
     init_root();

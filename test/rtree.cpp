@@ -25,6 +25,7 @@ TEST( RTreeTest, Insert )
     int max_ = dist(mt);
     if( max_ < min_ ){ std::swap(min_,max_); }
     rtree.insert( {{min_,max_}, i} );
+    ASSERT_EQ( rtree.size(), i+1 );
 
     // entries count check
     for( int level=0; level<rtree.leaf_level(); ++level )
@@ -114,6 +115,7 @@ TEST( RTreeTest, Erase )
     ASSERT_TRUE( data_inserted[it->second] ) << it->second << ": already deleted";
     data_inserted[it->second] = false;
     rtree.erase( it );
+    ASSERT_EQ( rtree.size(), cur_size-1 );
 
     // entries count check
     for( int level=0; level<rtree.leaf_level(); ++level )
