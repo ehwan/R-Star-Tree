@@ -5,6 +5,17 @@ set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 set( CMAKE_C_COMPILER /usr/bin/clang )
 set( CMAKE_CXX_COMPILER /usr/bin/clang++ )
 
+project( Sample CXX )
+add_executable( Sample
+  example/sample/sample.cpp
+)
+set_target_properties( Sample PROPERTIES
+  CXX_STANDARD 17
+)
+target_include_directories( Sample PUBLIC
+  ./include
+)
+
 project( test CXX )
 find_package( GTest )
 add_executable( test

@@ -6,6 +6,204 @@ C++ template RTree header only library.
 ## References
  Guttman, A. (1984). "R-Trees: A Dynamic Index Structure for Spatial Searching" (PDF). Proceedings of the 1984 ACM SIGMOD international conference on Management of data – SIGMOD '84. p. 47.
 
+## Dependencies
+ **No dependencies required** for core library.
+
+ Unit Tests are using `Google Test`, examples are using `Eigen`.
+
+## Sample Codes
+
+example code in `example/sample/sample.cpp`
+
+```cpp
+#include <RTree.hpp>
+#include <iterator>
+#include <type_traits>
+#include <iostream>
+
+int main()
+{
+  // ***************************
+  // one-dimension RTree example
+  // ***************************
+
+  // bounding box representation type
+  using aabb_type = eh::rtree::aabb_t<double>;
+
+  // RTree representation type
+  // using aabb_type as bounding box,
+  // double as per-data key_type
+  // int as per-data data_type
+  using rtree_type = eh::rtree::RTree< aabb_type, double, int >;
+
+  // std::map - like member types;
+  // value_type = std::pair< key_type, mapped_type >
+  using value_type = rtree_type::value_type;
+  using iterator = rtree_type::iterator;
+  using const_iterator = rtree_type::const_iterator;
+  static_assert( 
+    std::is_same_v<
+      std::iterator_traits<iterator>::iterator_category,
+      std::bidirectional_iterator_tag
+    >,
+    "Iterators are Bidirectional Iterator"
+  );
+
+  rtree_type rtree;
+
+  // insert 100 arithmetic sequence of points
+  for( int i=0; i<50; ++i )
+  {
+    double point = i;
+    int value = i;
+    rtree.insert( value_type(point, value) );
+  }
+
+  // rtree.begin(), rtree.end()
+  for( value_type value : rtree )
+  {
+    std::cout << "Value Inserted: [" << value.first << ", " << value.second << "]\n";
+  }
+
+  // search for points inside range [10, 20)
+  rtree.search_inside(
+    aabb_type( 10.0, 20.0-1e-9 ),
+    []( value_type const& v )
+    {
+      std::cout << "Search Result: [" << v.first << ", " << v.second << "]\n";
+      // continue searching
+      return false;
+
+      // return true to stop searching
+    }
+  );
+  return 0;
+}
+```
+
+## Using your own linear-algebra types
+
+To use custom linear algebra types ( eg. Eigen::Vector3f ), you must implement `eh::rtree::geometry_traits`.
+
+example below ( `example/eigen/main.cpp` ) shows how to link `Eigen::Vector<>` types to `RTree<>`.
+
+```cpp
+// use custom vector type in RTree class
+
+// link Eigen3::Vector type to geometry_traits
+template < typename T, unsigned int Size >
+struct my_rect_aabb
+{
+  using vec_t = Eigen::Vector<T,Size>;
+
+  vec_t min_, max_;
+
+  my_rect_aabb( vec_t const& point )
+    : min_(point),
+      max_(point)
+  {
+  }
+  my_rect_aabb( vec_t const& min__, vec_t const& max__ )
+    : min_(min__),
+      max_(max__)
+  {
+  }
+};
+
+namespace eh { namespace rtree {
+
+template < typename T, unsigned int Size >
+struct geometry_traits<my_rect_aabb<T,Size>>
+{
+  using area_type = T;
+  using rect_t = my_rect_aabb<T,Size>;
+  using vec_t = typename rect_t::vec_t;
+
+  static bool is_inside( rect_t const& rect, vec_t const& v )
+  {
+    return (rect.min_.array()<=v.array()).all() && (v.array()<=rect.max_.array()).all();
+  }
+  static bool is_inside( rect_t const& rect, rect_t const& rect2 )
+  {
+    return (rect.min_.array()<=rect2.min_.array()).all() && (rect2.max_.array()<=rect.max_.array()).all();
+  }
+
+  static bool is_overlap( rect_t const& rect, vec_t const& v )
+  {
+    return is_inside( rect, v );
+  }
+  static bool is_overlap( rect_t const& rect, rect_t const& rect2 )
+  {
+    if( (rect2.min_.array() > rect.max_.array()).any() ){ return false; }
+    if( (rect.min_.array() > rect2.max_.array()).any() ){ return false; }
+    return true;
+  }
+
+  static rect_t merge( rect_t const& rect, vec_t const& v )
+  {
+    return { 
+      rect.min_.array().min(v.array()), 
+      rect.max_.array().max(v.array())
+    };
+  }
+  static rect_t merge( rect_t const& rect, rect_t const& rect2 )
+  {
+    return { 
+      rect.min_.array().min(rect2.min_.array()), 
+      rect.max_.array().max(rect2.max_.array())
+    };
+  }
+
+
+  static area_type area( rect_t const& rect )
+  {
+    area_type ret = 1;
+    for( unsigned int i=0; i<Size; ++i )
+    {
+      ret *= ( rect.max_[i] - rect.min_[i] );
+    }
+    return ret;
+  }
+
+  // optional; used in quadratic split resolving conflict
+  static rect_t intersection( rect_t const& rect1, rect_t const& rect2 )
+  {
+    const vec_t ret_min = rect1.min_.array().max( rect2.min_.array() );
+    return { ret_min, rect1.max_.array().max(rect2.max_.array()).min( ret_min.array() ) };
+  }
+};
+
+}}
+
+int main()
+{
+  using vec_t = Eigen::Vector<double,3>;
+  using rect_t = my_rect_aabb<double,3>;
+  using rtree_t = eh::rtree::RTree< rect_t, vec_t, int >;
+  rtree_t rtree;
+
+  rtree.insert( {vec_t{0,0,0}, 0} );
+  rtree.insert( {vec_t{0.5,0.5,0.5}, 1} );
+  rtree.insert( {vec_t{0.7,0.7,0.7}, 2} );
+  rtree.insert( {vec_t{0.7,1.3,0.7}, 3} );
+
+  rtree.search_inside(
+    rect_t{
+      vec_t{0.1,0.1,0.1},
+      vec_t{1.1,1.1,1.1}
+    },
+    []( rtree_t::value_type val )
+    {
+      std::cout << "Value Inside [0.1,0.1,0.1]x[1.1,1.1,1.1]: " << val.second << "\n";
+      // continue search
+      return false;
+    }
+  );
+
+  return 0;
+}
+```
+
 
 ## Visualization Examples
 ### 1-dimensional R-Tree structure visualization
