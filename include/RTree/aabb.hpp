@@ -71,7 +71,7 @@ struct geometry_traits<aabb_t<ArithmeticType>>
   // optional; used in quadratic split resolving conflict
   static AABB intersection( AABB const& aabb, AABB const& aabb2 )
   {
-    const auto ret_min = std::min( aabb.min_, aabb2.min_ );
+    const auto ret_min = std::max( aabb.min_, aabb2.min_ );
     return { ret_min, std::max( ret_min, std::min(aabb.max_,aabb2.max_) ) };
   }
 };
@@ -133,7 +133,7 @@ struct geometry_traits<aabb_t<point_t<T,Dim>>>
   // optional; used in quadratic split resolving conflict
   static AABB intersection( AABB const& aabb, AABB const& aabb2 )
   {
-    const auto ret_min = min( aabb.min_, aabb2.min_ );
+    const auto ret_min = max( aabb.min_, aabb2.min_ );
     return { ret_min, max( ret_min, min(aabb.max_,aabb2.max_) ) };
   }
 

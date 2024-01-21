@@ -55,19 +55,19 @@ public:
     return parent()->_child[ _index_on_parent ];
   }
 
-  node_type *as_node()
+  inline node_type *as_node()
   {
     return reinterpret_cast<node_type*>( this );
   }
-  node_type const* as_node() const
+  inline node_type const* as_node() const
   {
     return reinterpret_cast<node_type const*>( this );
   }
-  leaf_type *as_leaf()
+  inline leaf_type *as_leaf()
   {
     return reinterpret_cast<leaf_type*>( this );
   }
-  leaf_type const* as_leaf() const
+  inline leaf_type const* as_leaf() const
   {
     return reinterpret_cast<leaf_type const*>( this );
   }
@@ -86,10 +86,10 @@ public:
     {
       node_type *n = parent()->next();
       if( n == nullptr ){ return nullptr; }
-      return reinterpret_cast<node_type*>(n->_child[0].second);
+      return n->_child[0].second;
     }else {
       // else; return next node in same parent
-      return reinterpret_cast<node_type*>(parent()->_child[ _index_on_parent+1 ].second);
+      return parent()->_child[ _index_on_parent+1 ].second;
     }
   }
   node_base_t const* next() const
@@ -103,10 +103,10 @@ public:
     {
       node_type const* n = parent()->next();
       if( n == nullptr ){ return nullptr; }
-      return reinterpret_cast<node_type const*>(n->_child[0].second);
+      return n->_child[0].second;
     }else {
       // else; return next node in same parent
-      return reinterpret_cast<node_type const*>(parent()->_child[ _index_on_parent+1 ].second);
+      return parent()->_child[ _index_on_parent+1 ].second;
     }
   }
   // get prev node on same level
@@ -123,10 +123,10 @@ public:
     {
       node_type *n = parent()->prev();
       if( n == nullptr ){ return nullptr; }
-      return reinterpret_cast<node_type*>(n->_child.back().second);
+      return n->_child.back().second;
     }else {
       // else; return next node in same parent
-      return reinterpret_cast<node_type*>(parent()->_child[ _index_on_parent-1 ].second);
+      return parent()->_child[ _index_on_parent-1 ].second;
     }
   }
   node_base_t const* prev() const
@@ -140,10 +140,10 @@ public:
     {
       node_type const* n = parent()->prev();
       if( n == nullptr ){ return nullptr; }
-      return reinterpret_cast<node_type const*>(n->_child.back().second);
+      return n->_child.back().second;
     }else {
       // else; return next node in same parent
-      return reinterpret_cast<node_type const*>(parent()->_child[ _index_on_parent-1 ].second);
+      return parent()->_child[ _index_on_parent-1 ].second;
     }
   }
 };
@@ -253,14 +253,14 @@ public:
       // child is leaf node
       for( auto &c : _child )
       {
-        reinterpret_cast<leaf_type*>(c.second)->delete_recursive();
-        delete reinterpret_cast<leaf_type*>(c.second);
+        c.second->as_leaf()->delete_recursive();
+        delete c.second->as_leaf();
       }
     }else {
       for( auto &c : _child )
       {
-        reinterpret_cast<node_type*>(c.second)->delete_recursive( leaf_level-1 );
-        delete reinterpret_cast<node_type*>(c.second);
+        c.second->as_node()->delete_recursive( leaf_level-1 );
+        delete c.second->as_node();
       }
     }
   }
@@ -275,15 +275,15 @@ public:
       {
         new_node->add_child(
           c.first, 
-          reinterpret_cast<leaf_type const*>(c.second)->clone_recursive()
+          c.second->as_leaf()->clone_recursive()
         );
       }
     }else {
       for( auto &c : *this )
       {
         new_node->add_child(
-          c.first, 
-          reinterpret_cast<node_type const*>(c.second)->clone_recursive( leaf_level-1 )
+          c.first,
+          c.second->as_node()->clone_recursive( leaf_level-1 )
         );
       }
     }
@@ -292,19 +292,19 @@ public:
 
   node_type* next()
   {
-    return reinterpret_cast<node_type*>( parent_type::next() );
+    return parent_type::next()->as_node();
   }
   node_type const* next() const
   {
-    return reinterpret_cast<node_type const*>( parent_type::next() );
+    return parent_type::next()->as_node();
   }
   node_type* prev()
   {
-    return reinterpret_cast<node_type*>( parent_type::prev() );
+    return parent_type::prev()->as_node();
   }
   node_type const* prev() const
   {
-    return reinterpret_cast<node_type const*>( parent_type::prev() );
+    return parent_type::prev()->as_node();
   }
 
 
@@ -412,19 +412,19 @@ public:
 
   leaf_type* next()
   {
-    return reinterpret_cast<leaf_type*>( parent_type::next() );
+    return parent_type::next()->as_leaf();
   }
   leaf_type const* next() const
   {
-    return reinterpret_cast<leaf_type const*>( parent_type::next() );
+    return parent_type::next()->as_leaf();
   }
   leaf_type* prev()
   {
-    return reinterpret_cast<leaf_type*>( parent_type::prev() );
+    return parent_type::prev()->as_leaf();
   }
   leaf_type const* prev() const
   {
-    return reinterpret_cast<leaf_type const*>( parent_type::prev() );
+    return parent_type::prev()->as_leaf();
   }
 };
 

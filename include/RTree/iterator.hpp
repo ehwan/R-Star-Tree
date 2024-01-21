@@ -63,7 +63,7 @@ public:
   {
     if( _pointer == &_leaf->_child.back() )
     {
-      _leaf = reinterpret_cast<LeafType*>(_leaf->next());
+      _leaf = _leaf->next();
       _pointer = _leaf ? &_leaf->_child.front() : nullptr;
     }else {
       ++_pointer;
@@ -80,7 +80,7 @@ public:
   {
     if( _pointer == &_leaf->_child.front() )
     {
-      _leaf = reinterpret_cast<LeafType*>(_leaf->prev());
+      _leaf = _leaf->prev();
       _pointer = _leaf ? &_leaf->_child.back() : nullptr;
     }else {
       --_pointer;
@@ -147,24 +147,24 @@ public:
 
   this_type& operator++()
   {
-    _node = reinterpret_cast<NodeType*>(_node->next());
+    _node = _node->next();
     return *this;
   }
   this_type operator++(int)
   {
     this_type ret = *this;
-    _node = reinterpret_cast<NodeType*>(_node->next());
+    _node = _node->next();
     return ret;
   }
   this_type& operator--()
   {
-    _node = reinterpret_cast<NodeType*>(_node->prev());
+    _node = _node->prev();
     return *this;
   }
   this_type operator--(int)
   {
     this_type ret = *this;
-    _node = reinterpret_cast<NodeType*>(_node->prev());
+    _node = _node->prev();
     return ret;
   }
 

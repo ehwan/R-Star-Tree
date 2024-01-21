@@ -67,11 +67,12 @@ protected:
     {
       if( _leaf_level == 0 )
       {
-        reinterpret_cast<leaf_type*>( _root )->delete_recursive();
-        delete reinterpret_cast<leaf_type*>( _root );
+        // root is leaf node
+        _root->as_leaf()->delete_recursive();
+        delete _root->as_leaf();
       }else {
-        reinterpret_cast<node_type*>( _root )->delete_recursive( _leaf_level );
-        delete reinterpret_cast<node_type*>( _root );
+        _root->as_node()->delete_recursive( _leaf_level );
+        delete _root->as_node();
       }
     }
   }
@@ -110,7 +111,7 @@ protected:
     Set N to be the child node pointed to by F.p and repeat from CL2.
     */
 
-    node_type *n = reinterpret_cast<node_type*>(_root);
+    node_type *n = _root->as_node();
     for( int level=0; level<target_level; ++level )
     {
       area_type min_area_enlarge = MAX_AREA;
@@ -133,7 +134,7 @@ protected:
         }
       }
       assert( chosen != n->end() );
-      n = reinterpret_cast<node_type*>(chosen->second);
+      n = chosen->second->as_node();
     }
     return n;
   }
@@ -199,7 +200,7 @@ public:
 
   void insert( value_type new_val )
   {
-    leaf_type *chosen = reinterpret_cast<leaf_type*>(choose_insert_target( new_val.first, _leaf_level ));
+    leaf_type *chosen = choose_insert_target( new_val.first, _leaf_level )->as_leaf();
     chosen->insert( std::move(new_val) );
     leaf_type *pair = nullptr;
     if( chosen->size() > MAX_ENTRIES )
@@ -261,11 +262,11 @@ public:
     // root adjustment
     if( _leaf_level > 0 )
     {
-      if( reinterpret_cast<node_type*>(_root)->size() == 1 )
+      if( _root->as_node()->size() == 1 )
       {
-        node_base_type *child = reinterpret_cast<node_type*>(_root)->_child[0].second;
-        reinterpret_cast<node_type*>(_root)->erase( child );
-        delete reinterpret_cast<node_type*>(_root);
+        node_base_type *child = _root->as_node()->_child[0].second;
+        _root->as_node()->erase( child );
+        delete _root->as_node();
         _root = child;
         --_leaf_level;
       }
@@ -278,18 +279,18 @@ public:
       // leaf node
       if( reinsert.first == 0 )
       {
-        for( auto &c : *reinterpret_cast<leaf_type*>(reinsert.second) )
+        for( auto &c : *reinsert.second->as_leaf() )
         {
           insert( std::move( c ) );
         }
-        delete reinterpret_cast<leaf_type*>(reinsert.second);
+        delete reinsert.second->as_leaf();
       }else {
-        for( auto &c : *reinterpret_cast<node_type*>(reinsert.second) )
+        for( auto &c : *reinsert.second->as_node() )
         {
           node_type *chosen = choose_insert_target( c.first, _leaf_level-reinsert.first );
           insert_node( c.first, c.second, chosen );
         }
-        delete reinterpret_cast<node_type*>(reinsert.second);
+        delete reinsert.second->as_node();
       }
     }
   }
@@ -305,10 +306,10 @@ public:
   {
     if( rhs._leaf_level == 0 )
     {
-      _root = reinterpret_cast<leaf_type*>(rhs._root)->clone_recursive();
+      _root = rhs._root->as_leaf()->clone_recursive();
       _leaf_level = 0;
     }else {
-      _root = reinterpret_cast<node_type*>(rhs._root)->clone_recursive(rhs._leaf_level);
+      _root = rhs._root->as_node()->clone_recursive( rhs._leaf_level );
       _leaf_level = rhs._leaf_level;
     }
   }
@@ -319,10 +320,10 @@ public:
     delete_if();
     if( rhs._leaf_level == 0 )
     {
-      _root = reinterpret_cast<leaf_type*>(rhs._root)->clone_recursive();
+      _root = rhs._root->as_leaf()->clone_recursive();
       _leaf_level = 0;
     }else {
-      _root = reinterpret_cast<node_type*>(rhs._root)->clone_recursive(rhs._leaf_level);
+      _root = rhs._root->as_node()->clone_recursive( rhs._leaf_level );
       _leaf_level = rhs._leaf_level;
     }
     return *this;
@@ -346,28 +347,28 @@ public:
 
   iterator begin()
   {
-    node_type *n = reinterpret_cast<node_type*>(_root);
+    node_type *n = _root->as_node();
     for( int level=0; level<_leaf_level; ++level )
     {
-      n = reinterpret_cast<node_type*>(n->_child[0].second);
+      n = n->_child[0].second->as_node();
     }
-    if( reinterpret_cast<leaf_type*>(n)->empty() ){ return {}; }
-    return { 
-      &reinterpret_cast<leaf_type*>(n)->_child[0],
-      reinterpret_cast<leaf_type*>(n)
+    if( n->as_leaf()->empty() ){ return {}; }
+    return {
+      &n->as_leaf()->_child[0],
+      n->as_leaf()
     };
   }
   const_iterator cbegin() const
   {
-    node_type const* n = reinterpret_cast<node_type const*>(_root);
+    node_type const* n = _root->as_node();
     for( int level=0; level<_leaf_level; ++level )
     {
-      n = reinterpret_cast<node_type const*>(n->_child[0].second);
+      n = n->_child[0].second->as_node();
     }
-    if( reinterpret_cast<leaf_type const*>(n)->empty() ){ return {}; }
+    if( n->as_leaf()->empty() ){ return {}; }
     return { 
-      &reinterpret_cast<leaf_type const*>(n)->_child[0],
-      reinterpret_cast<leaf_type const*>(n)
+      &n->as_leaf()->_child[0],
+      n->as_leaf()
     };
   }
   const_iterator begin() const
@@ -390,19 +391,19 @@ public:
 
   node_iterator begin( int level )
   {
-    node_type *n = reinterpret_cast<node_type*>(_root);
+    node_type *n = _root->as_node();
     for( int l=0; l<level; ++l )
     {
-      n = reinterpret_cast<node_type*>(n->_child[0].second);
+      n = n->_child[0].second->as_node();
     }
     return { n };
   }
   const_node_iterator begin( int level ) const
   {
-    node_type const* n = reinterpret_cast<node_type const*>(_root);
+    node_type const* n = _root->as_node();
     for( int l=0; l<level; ++l )
     {
-      n = reinterpret_cast<node_type const*>(n->_child[0].second);
+      n = n->_child[0].second->as_node();
     }
     return { n };
   }
@@ -426,21 +427,21 @@ public:
 
   leaf_iterator leaf_begin()
   {
-    node_type *n = reinterpret_cast<node_type*>(_root);
+    node_type *n = _root->as_node();
     for( int l=0; l<_leaf_level; ++l )
     {
-      n = reinterpret_cast<node_type*>(n->_child[0].second);
+      n = n->_child[0].second->as_node();
     }
-    return { reinterpret_cast<leaf_type*>(n) };
+    return { n->as_leaf() };
   }
   const_leaf_iterator leaf_begin() const
   {
-    node_type const* n = reinterpret_cast<node_type const*>(_root);
+    node_type const* n = _root->as_node();
     for( int l=0; l<_leaf_level; ++l )
     {
-      n = reinterpret_cast<node_type const*>(n->_child[0].second);
+      n = n->_child[0].second->as_node();
     }
-    return { reinterpret_cast<leaf_type const*>(n) };
+    return { n->as_leaf() };
   }
   const_leaf_iterator leaf_cbegin() const
   {

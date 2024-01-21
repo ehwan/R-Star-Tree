@@ -58,10 +58,10 @@ TEST( RTreeTest, Insert )
           auto a = c.first;
           if( level+1==rtree.leaf_level() )
           {
-            auto b = reinterpret_cast<rtree_type::leaf_type*>(c.second)->calculate_bound();
+            auto b = c.second->as_leaf()->calculate_bound();
             ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }else {
-            auto b = reinterpret_cast<node_type*>(c.second)->calculate_bound();
+            auto b = c.second->as_node()->calculate_bound();
             ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }
         }
@@ -148,10 +148,10 @@ TEST( RTreeTest, Erase )
           auto a = c.first;
           if( level+1==rtree.leaf_level() )
           {
-            auto b = reinterpret_cast<rtree_type::leaf_type*>(c.second)->calculate_bound();
+            auto b = c.second->as_leaf()->calculate_bound();
             ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }else {
-            auto b = reinterpret_cast<node_type*>(c.second)->calculate_bound();
+            auto b = c.second->as_node()->calculate_bound();
             ASSERT_TRUE( traits::is_inside(a,b) ) << "i: " << i << ", level: " << level;
           }
         }
