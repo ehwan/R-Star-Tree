@@ -226,3 +226,43 @@ TEST( RTreeTest, Search )
     }
   }
 }
+
+TEST( RTreeTest, Assign )
+{
+  using rtree_type = er::RTree<er::aabb_t<int>,int,int>;
+  using traits = rtree_type::traits;
+  using bound_type = rtree_type::geometry_type;
+  using node_type = rtree_type::node_type;
+  std::mt19937 mt( std::random_device{}() );
+  std::uniform_int_distribution<int> dist( -100, 100 );
+
+  rtree_type rtree;
+  std::vector<rtree_type::value_type> original;
+
+  for( int i=0; i<1000; ++i )
+  {
+    int pos = dist(mt);
+    rtree.insert( {pos, i} );
+    original.push_back( {pos,i} );
+  }
+  std::sort( original.begin(), original.end() );
+
+  rtree_type rtree_copy = rtree;
+  std::vector<rtree_type::value_type> copied( rtree_copy.begin(), rtree_copy.end() );
+  std::sort( copied.begin(), copied.end() );
+
+  ASSERT_EQ( original.size(), copied.size() );
+  for( int i=0; i<original.size(); ++i )
+  {
+    ASSERT_EQ( original[i], copied[i] );
+  }
+
+  rtree_type rtree_moved = std::move(rtree);
+  std::vector<rtree_type::value_type> moved( rtree_moved.begin(), rtree_moved.end() );
+  std::sort( moved.begin(), moved.end() );
+  ASSERT_EQ( original.size(), copied.size() );
+  for( int i=0; i<original.size(); ++i )
+  {
+    ASSERT_EQ( original[i], moved[i] );
+  }
+}

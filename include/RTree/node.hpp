@@ -246,18 +246,18 @@ struct node_t
       // child is leaf node
       for( auto &c : *this )
       {
-        new_node->add_child(
+        new_node->insert({
           c.first, 
           c.second->as_leaf()->clone_recursive()
-        );
+        });
       }
     }else {
       for( auto &c : *this )
       {
-        new_node->add_child(
+        new_node->insert({
           c.first,
           c.second->as_node()->clone_recursive( leaf_level-1 )
-        );
+        });
       }
     }
     return new_node;
