@@ -5,20 +5,20 @@ namespace eh { namespace rtree {
 template < typename GeometryType >
 struct geometry_traits;
 
-template < typename GeometryType, typename KeyType, typename MappedType >
-class node_base_t;
-template < typename GeometryType, typename KeyType, typename MappedType >
-class node_t;
-template < typename GeometryType, typename KeyType, typename MappedType >
-class leaf_node_t;
+template < typename TreeType >
+struct node_base_t;
+template < typename TreeType >
+struct node_t;
+template < typename TreeType >
+struct leaf_node_t;
 
 template < typename LeafType >
-class iterator_t;
+struct iterator_t;
 
 template < typename NodeType >
-class node_iterator_t;
+struct node_iterator_t;
 
-template < typename GeometryType, typename KeyType, typename MappedType >
+template < typename GeometryType, typename KeyType, typename MappedType, unsigned int MinEntry=4, unsigned int MaxEntry=8 >
 class RTree;
 
 }}

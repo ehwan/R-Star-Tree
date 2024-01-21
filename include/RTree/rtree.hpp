@@ -20,13 +20,13 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-template < typename GeometryType, typename KeyType, typename MappedType >
+template < typename GeometryType, typename KeyType, typename MappedType, unsigned int MinEntry, unsigned int MaxEntry >
 class RTree
 {
-  using node_base_type = node_base_t<GeometryType,KeyType,MappedType>;
+  using node_base_type = node_base_t<RTree>;
 public:
-  using node_type = node_t<GeometryType,KeyType,MappedType>;
-  using leaf_type = leaf_node_t<GeometryType,KeyType,MappedType>;
+  using node_type = node_t<RTree>;
+  using leaf_type = leaf_node_t<RTree>;
 
   using size_type = unsigned int;
 
@@ -42,9 +42,9 @@ public:
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
   // M
-  constexpr static size_type MAX_ENTRIES = 8;
+  constexpr static size_type MAX_ENTRIES = MaxEntry;
   // m <= M/2
-  constexpr static size_type MIN_ENTRIES = 4;
+  constexpr static size_type MIN_ENTRIES = MinEntry;
   static_assert( MIN_ENTRIES <= MAX_ENTRIES/2, "Invalid MIN_ENTRIES count" );
   static_assert( MIN_ENTRIES >= 1, "Invalid MIN_ENTRIES count" );
 
@@ -182,7 +182,7 @@ protected:
   }
 
   // using splitter_t = sequence_split_t
-  using splitter_t = quadratic_split_t<geometry_type>;
+  using splitter_t = quadratic_split_t<RTree>;
   
   // 'node' contains MAX_ENTRIES+1 nodes;
   // split into two nodes
@@ -191,7 +191,7 @@ protected:
   NodeType* split( NodeType *node )
   {
     // @TODO another split scheme
-    splitter_t spliter{ MIN_ENTRIES, MAX_ENTRIES };
+    splitter_t spliter;
     return spliter( node );
   }
 
@@ -226,7 +226,7 @@ public:
   void erase( iterator pos )
   {
     leaf_type *leaf = pos._leaf;
-    leaf->erase( leaf->_child.begin()+std::distance(leaf->_child.data(),pos._pointer) );
+    leaf->erase( pos._pointer );
 
     if( leaf == _root ){ return; }
 

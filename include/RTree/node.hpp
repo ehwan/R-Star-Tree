@@ -8,32 +8,19 @@
 
 namespace eh { namespace rtree {
 
-template < typename GeometryType, typename KeyType, typename MappedType >
-class node_base_t
+template < typename TreeType >
+struct node_base_t
 {
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class RTree;
+  using node_type = node_t<TreeType>;
+  using leaf_type = leaf_node_t<TreeType>;
 
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class node_t;
+  using size_type = typename TreeType::size_type;
+  using bound_type = typename TreeType::geometry_type;
+  using key_type = typename TreeType::key_type;
+  using mapped_type = typename TreeType::mapped_type;
 
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class leaf_node_t;
-
-public:
-  using node_type = node_t<GeometryType,KeyType,MappedType>;
-  using leaf_type = leaf_node_t<GeometryType,KeyType,MappedType>;
-
-  using size_type = unsigned int;
-  using bound_type = GeometryType;
-  using key_type = KeyType;
-  using mapped_type = MappedType;
-
-protected:
   node_type *_parent = nullptr;
   size_type _index_on_parent;
-
-public:
 
   // parent node's pointer
   node_type *parent() const
@@ -148,34 +135,20 @@ public:
   }
 };
 
-template < typename GeometryType, typename KeyType, typename MappedType >
-class node_t
-  : public node_base_t<GeometryType,KeyType,MappedType>
+template < typename TreeType >
+struct node_t
+  : public node_base_t<TreeType>
 {
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class RTree;
-
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class node_base_t;
-
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class leaf_node_t;
-
-  template < typename _NodeType >
-  friend class node_iterator_t;
-
-public:
-  using parent_type = node_base_t<GeometryType,KeyType,MappedType>;
+  using parent_type = node_base_t<TreeType>;
   using node_base_type = parent_type;
   using node_type = node_t;
-  using leaf_type = leaf_node_t<GeometryType,KeyType,MappedType>;
-  using size_type = unsigned int;
-  using bound_type = GeometryType;
-  using key_type = KeyType;
-  using mapped_type = MappedType;
-  using value_type = std::pair<bound_type,node_base_type*>;
+  using leaf_type = leaf_node_t<TreeType>;
+  using size_type = typename TreeType::size_type;
+  using geometry_type = typename TreeType::geometry_type;
+  using key_type = typename TreeType::key_type;
+  using mapped_type = typename TreeType::mapped_type;
+  using value_type = std::pair<geometry_type,node_base_type*>;
 
-public:
   std::vector<value_type> _child;
 
   using iterator = typename decltype(_child)::iterator;
@@ -234,13 +207,13 @@ public:
   }
 
   // union bouinding box of children
-  bound_type calculate_bound() const
+  geometry_type calculate_bound() const
   {
     assert( empty() == false );
-    bound_type merged = _child[0].first;
+    geometry_type merged = _child[0].first;
     for( int i=1; i<_child.size(); ++i )
     {
-      merged = geometry_traits<bound_type>::merge( merged, _child[i].first );
+      merged = geometry_traits<geometry_type>::merge( merged, _child[i].first );
     }
     return merged;
   }
@@ -310,34 +283,20 @@ public:
 
 };
 
-template < typename GeometryType, typename KeyType, typename MappedType >
-class leaf_node_t
-  : public node_base_t<GeometryType, KeyType, MappedType>
+template < typename TreeType >
+struct leaf_node_t
+  : public node_base_t<TreeType>
 {
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class RTree;
-
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class node_base_t;
-
-  template < typename _GeometryType, typename _KeyType, typename _MappedType >
-  friend class node_t;
-
-  template < typename _LeafType >
-  friend class iterator_t;
-
-public:
-  using parent_type = node_base_t<GeometryType,KeyType,MappedType>;
+  using parent_type = node_base_t<TreeType>;
   using node_base_type = parent_type;
-  using node_type = node_t<GeometryType,KeyType,MappedType>;
+  using node_type = node_t<TreeType>;
   using leaf_type = leaf_node_t;
-  using size_type = unsigned int;
-  using bound_type = GeometryType;
-  using key_type = KeyType;
-  using mapped_type = MappedType;
+  using size_type = typename TreeType::size_type;
+  using geometry_type = typename TreeType::geometry_type;
+  using key_type = typename TreeType::key_type;
+  using mapped_type = typename TreeType::mapped_type;
   using value_type = std::pair<key_type,mapped_type>;
 
-public:
   std::vector<value_type> _child;
 
   using iterator = typename decltype(_child)::iterator;
@@ -350,9 +309,13 @@ public:
   }
   void erase( iterator pos )
   {
-    if( pos != _child.end()-1 )
+    erase( &*pos );
+  }
+  void erase( value_type *data )
+  {
+    if( std::distance(_child.data(),data) != size()-1 )
     {
-      *pos = std::move( _child.back() );
+      *data = std::move( _child.back() );
     }
     _child.pop_back();
   }
@@ -388,13 +351,13 @@ public:
   }
 
   // union bouinding box of children
-  bound_type calculate_bound() const
+  geometry_type calculate_bound() const
   {
     assert( empty() == false );
-    bound_type merged = _child[0].first;
+    geometry_type merged = _child[0].first;
     for( int i=1; i<_child.size(); ++i )
     {
-      merged = geometry_traits<bound_type>::merge( merged, _child[i].first );
+      merged = geometry_traits<geometry_type>::merge( merged, _child[i].first );
     }
     return merged;
   }

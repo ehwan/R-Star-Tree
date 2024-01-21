@@ -8,11 +8,8 @@ namespace eh { namespace rtree {
 
 // iterates through inserted key-value pairs
 template < typename LeafType >
-class iterator_t
+struct iterator_t
 {
-  template < typename _BoundType, typename _KeyType, typename _MappedType >
-  friend class RTree;
-
   using this_type = iterator_t<LeafType>;
   using child_iterator = std::conditional_t<
     std::is_const_v<LeafType>,
@@ -20,7 +17,6 @@ class iterator_t
     typename LeafType::iterator
   >;
 
-public:
   using value_type = typename child_iterator::value_type;
   using difference_type = std::make_signed_t<typename LeafType::size_type>;
 
@@ -29,11 +25,9 @@ public:
 
   using iterator_category = std::bidirectional_iterator_tag;
 
-protected:
   pointer _pointer;
   LeafType *_leaf;
 
-public:
   iterator_t()
     : _pointer(nullptr),
       _leaf(nullptr)
@@ -106,11 +100,10 @@ public:
 
 // iterates through same-level nodes
 template < typename NodeType >
-class node_iterator_t
+struct node_iterator_t
 {
   using this_type = node_iterator_t<NodeType>;
 
-public:
   using value_type = NodeType*;
   using difference_type = std::make_signed_t<typename NodeType::size_type>;
 
@@ -119,10 +112,8 @@ public:
 
   using iterator_category = std::bidirectional_iterator_tag;
 
-protected:
   NodeType *_node;
 
-public:
   node_iterator_t()
     : _node(nullptr)
   {

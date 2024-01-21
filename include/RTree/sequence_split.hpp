@@ -8,15 +8,15 @@
 namespace eh { namespace rtree {
 
 // split nodes 'as-is'
-template < typename BoundType >
+template < typename TreeType >
 struct sequence_split_t
 {
-  using bound_type = BoundType;
-  using area_type = typename bound_type::area_type;
+  using geometry_type = typename TreeType::geometry_type;
+  using area_type = typename geometry_type::area_type;
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
-  unsigned int MIN_ENTRIES = 4;
-  unsigned int MAX_ENTRIES = 8;
+  constexpr static unsigned int MIN_ENTRIES = TreeType::MIN_ENTRIES;
+  constexpr static unsigned int MAX_ENTRIES = TreeType::MAX_ENTRIES;
 
   template < typename NodeType >
   NodeType *operator()( NodeType *node ) const

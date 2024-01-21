@@ -10,16 +10,16 @@
 namespace eh { namespace rtree {
 
 // quadratic split algorithm
-template < typename BoundType >
+template < typename TreeType >
 struct quadratic_split_t
 {
-  using bound_type = BoundType;
-  using traits = geometry_traits<bound_type>;
-  using area_type = typename geometry_traits<bound_type>::area_type;
+  using geometry_type = typename TreeType::geometry_type;
+  using traits = geometry_traits<geometry_type>;
+  using area_type = typename geometry_traits<geometry_type>::area_type;
   constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
 
-  unsigned int MIN_ENTRIES = 4;
-  unsigned int MAX_ENTRIES = 8;
+  constexpr static unsigned int MIN_ENTRIES = TreeType::MIN_ENTRIES;
+  constexpr static unsigned int MAX_ENTRIES = TreeType::MAX_ENTRIES;
 
   template < typename NodeType >
   std::pair<typename NodeType::iterator,typename NodeType::iterator>
@@ -92,8 +92,8 @@ struct quadratic_split_t
     auto seeds = pick_seed( node );
     entry1.push_back( std::move(*seeds.first) );
     entry2.push_back( std::move(*seeds.second) );
-    bound_type bound1 = entry1.front().first;
-    bound_type bound2 = entry2.front().first;
+    geometry_type bound1 = entry1.front().first;
+    geometry_type bound2 = entry2.front().first;
     node->_child.erase( seeds.second );
     node->_child.erase( seeds.first );
 
