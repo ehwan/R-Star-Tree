@@ -40,3 +40,18 @@ set_target_properties( visualize_2d PROPERTIES
 target_include_directories( visualize_2d PUBLIC
   ./include
 )
+
+project( eigen CXX )
+find_package( Eigen3 )
+add_executable( eigen
+  example/eigen/main.cpp
+)
+set_target_properties( eigen PROPERTIES
+  CXX_STANDARD 17
+)
+target_include_directories( eigen PUBLIC
+  ./include
+)
+target_link_libraries( eigen PUBLIC
+  Eigen3::Eigen
+)
