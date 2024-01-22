@@ -35,11 +35,11 @@ struct node_base_t
 
   auto& entry()
   {
-    return parent()->_child[ _index_on_parent ];
+    return parent()->at( _index_on_parent );
   }
   auto const& entry() const
   {
-    return parent()->_child[ _index_on_parent ];
+    return parent()->at( _index_on_parent );
   }
 
   inline node_type *as_node()
@@ -73,10 +73,10 @@ struct node_base_t
     {
       node_type *n = parent()->next();
       if( n == nullptr ){ return nullptr; }
-      return n->_child[0].second;
+      return n->at(0).second;
     }else {
       // else; return next node in same parent
-      return parent()->_child[ _index_on_parent+1 ].second;
+      return parent()->at( _index_on_parent+1 ).second;
     }
   }
   node_base_t const* next() const
@@ -90,10 +90,10 @@ struct node_base_t
     {
       node_type const* n = parent()->next();
       if( n == nullptr ){ return nullptr; }
-      return n->_child[0].second;
+      return n->at(0).second;
     }else {
       // else; return next node in same parent
-      return parent()->_child[ _index_on_parent+1 ].second;
+      return parent()->at( _index_on_parent+1 ).second;
     }
   }
   // get prev node on same level
@@ -110,10 +110,10 @@ struct node_base_t
     {
       node_type *n = parent()->prev();
       if( n == nullptr ){ return nullptr; }
-      return n->_child.back().second;
+      return n->at(n->size()-1).second;
     }else {
       // else; return next node in same parent
-      return parent()->_child[ _index_on_parent-1 ].second;
+      return parent()->at( _index_on_parent-1 ).second;
     }
   }
   node_base_t const* prev() const
@@ -127,10 +127,10 @@ struct node_base_t
     {
       node_type const* n = parent()->prev();
       if( n == nullptr ){ return nullptr; }
-      return n->_child.back().second;
+      return n->at(n->size()-1).second;
     }else {
       // else; return next node in same parent
-      return parent()->_child[ _index_on_parent-1 ].second;
+      return parent()->at( _index_on_parent-1 ).second;
     }
   }
 };
@@ -149,6 +149,12 @@ struct node_t
   using mapped_type = typename TreeType::mapped_type;
   using value_type = std::pair<geometry_type,node_base_type*>;
 
+  node_t() = default;
+  node_t( node_t const& ) = delete;
+  node_t& operator=( node_t const& ) = delete;
+  node_t( node_t && ) = default;
+  node_t& operator=( node_t && ) = default;
+
   std::vector<value_type> _child;
 
   using iterator = typename decltype(_child)::iterator;
@@ -158,7 +164,7 @@ struct node_t
   void insert( value_type child )
   {
     child.second->_parent = this;
-    child.second->_index_on_parent = _child.size();
+    child.second->_index_on_parent = size();
     _child.push_back( std::move(child) );
   }
   void erase( node_base_type *node )
@@ -174,6 +180,11 @@ struct node_t
   void erase( iterator pos )
   {
     erase( pos->second );
+  }
+
+  void clear()
+  {
+    _child.clear();
   }
 
   // child count
@@ -206,14 +217,31 @@ struct node_t
     return _child.end();
   }
 
+  value_type& at( size_type i )
+  {
+    return _child[i];
+  }
+  value_type const& at( size_type i ) const
+  {
+    return _child[i];
+  }
+  value_type& operator[]( size_type i )
+  {
+    return at(i);
+  }
+  value_type const& operator[]( size_type i ) const
+  {
+    return at(i);
+  }
+
   // union bouinding box of children
   geometry_type calculate_bound() const
   {
     assert( empty() == false );
-    geometry_type merged = _child[0].first;
-    for( int i=1; i<_child.size(); ++i )
+    geometry_type merged = at(0).first;
+    for( size_type i=1; i<size(); ++i )
     {
-      merged = geometry_traits<geometry_type>::merge( merged, _child[i].first );
+      merged = geometry_traits<geometry_type>::merge( merged, at(i).first );
     }
     return merged;
   }
@@ -224,13 +252,13 @@ struct node_t
     if( leaf_level == 1 )
     {
       // child is leaf node
-      for( auto &c : _child )
+      for( auto &c : *this )
       {
         c.second->as_leaf()->delete_recursive();
         delete c.second->as_leaf();
       }
     }else {
-      for( auto &c : _child )
+      for( auto &c : *this )
       {
         c.second->as_node()->delete_recursive( leaf_level-1 );
         delete c.second->as_node();
@@ -320,6 +348,12 @@ struct leaf_node_t
   using iterator = typename decltype(_child)::iterator;
   using const_iterator = typename decltype(_child)::const_iterator;
 
+  leaf_node_t() = default;
+  leaf_node_t( leaf_node_t const& ) = delete;
+  leaf_node_t& operator=( leaf_node_t const& ) = delete;
+  leaf_node_t( leaf_node_t && ) = default;
+  leaf_node_t& operator=( leaf_node_t && ) = default;
+
   // add child node with bounding box
   void insert( value_type child )
   {
@@ -336,6 +370,11 @@ struct leaf_node_t
       *data = std::move( _child.back() );
     }
     _child.pop_back();
+  }
+
+  void clear()
+  {
+    _child.clear();
   }
 
   // child count
@@ -368,14 +407,31 @@ struct leaf_node_t
     return _child.end();
   }
 
+  value_type& at( size_type i )
+  {
+    return _child[i];
+  }
+  value_type const& at( size_type i ) const
+  {
+    return _child[i];
+  }
+  value_type& operator[]( size_type i )
+  {
+    return at(i);
+  }
+  value_type const& operator[]( size_type i ) const
+  {
+    return at(i);
+  }
+
   // union bouinding box of children
   geometry_type calculate_bound() const
   {
     assert( empty() == false );
-    geometry_type merged = _child[0].first;
-    for( int i=1; i<_child.size(); ++i )
+    geometry_type merged = at(0).first;
+    for( int i=1; i<size(); ++i )
     {
-      merged = geometry_traits<geometry_type>::merge( merged, _child[i].first );
+      merged = geometry_traits<geometry_type>::merge( merged, at(i).first );
     }
     return merged;
   }

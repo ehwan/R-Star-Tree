@@ -158,12 +158,12 @@ protected:
   // insert node to given parent
   void insert_node( geometry_type const& bound, node_base_type *node, node_type *parent )
   {
-    parent->insert( {bound, node} );
     node_type *pair = nullptr;
-
-    if( parent->size() > MAX_ENTRIES )
+    if( parent->size() == MAX_ENTRIES )
     {
-      pair = split( parent );
+      pair = split( parent, typename node_type::value_type{bound,node} );
+    }else {
+      parent->insert( {bound, node} );
     }
     broadcast_new_bound( parent );
     if( pair )
@@ -181,18 +181,18 @@ protected:
     }
   }
 
-  // using splitter_t = sequence_split_t
+  // using splitter_t = sequence_split_t<RTree>;
   using splitter_t = quadratic_split_t<RTree>;
   
   // 'node' contains MAX_ENTRIES+1 nodes;
   // split into two nodes
   // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
   template < typename NodeType >
-  NodeType* split( NodeType *node )
+  NodeType* split( NodeType *node, typename NodeType::value_type child )
   {
     // @TODO another split scheme
     splitter_t spliter;
-    return spliter( node );
+    return spliter( node, std::move(child) );
   }
 
 
@@ -201,11 +201,12 @@ public:
   void insert( value_type new_val )
   {
     leaf_type *chosen = choose_insert_target( new_val.first, _leaf_level )->as_leaf();
-    chosen->insert( std::move(new_val) );
     leaf_type *pair = nullptr;
-    if( chosen->size() > MAX_ENTRIES )
+    if( chosen->size() == MAX_ENTRIES )
     {
-      pair = split( chosen );
+      pair = split( chosen, std::move(new_val) );
+    }else {
+      chosen->insert( std::move(new_val) );
     }
     broadcast_new_bound( chosen );
     if( pair )
@@ -264,7 +265,7 @@ public:
     {
       if( _root->as_node()->size() == 1 )
       {
-        node_base_type *child = _root->as_node()->_child[0].second;
+        node_base_type *child = _root->as_node()->at(0).second;
         _root->as_node()->erase( child );
         delete _root->as_node();
         _root = child;
@@ -303,6 +304,13 @@ public:
     }else {
       return _root->as_node()->size_recursive( _leaf_level );
     }
+  }
+
+  void clear()
+  {
+    delete_if();
+    set_null();
+    init_root();
   }
 
   RTree()
@@ -354,17 +362,21 @@ public:
     rhs.init_root();
     return *this;
   }
+  ~RTree()
+  {
+    delete_if();
+  }
 
   iterator begin()
   {
     node_type *n = _root->as_node();
     for( int level=0; level<_leaf_level; ++level )
     {
-      n = n->_child[0].second->as_node();
+      n = n->at(0).second->as_node();
     }
     if( n->as_leaf()->empty() ){ return {}; }
     return {
-      &n->as_leaf()->_child[0],
+      &n->as_leaf()->at(0),
       n->as_leaf()
     };
   }
@@ -373,11 +385,11 @@ public:
     node_type const* n = _root->as_node();
     for( int level=0; level<_leaf_level; ++level )
     {
-      n = n->_child[0].second->as_node();
+      n = n->at(0).second->as_node();
     }
     if( n->as_leaf()->empty() ){ return {}; }
     return { 
-      &n->as_leaf()->_child[0],
+      &n->as_leaf()->at(0),
       n->as_leaf()
     };
   }
@@ -404,7 +416,7 @@ public:
     node_type *n = _root->as_node();
     for( int l=0; l<level; ++l )
     {
-      n = n->_child[0].second->as_node();
+      n = n->at(0).second->as_node();
     }
     return { n };
   }
@@ -413,7 +425,7 @@ public:
     node_type const* n = _root->as_node();
     for( int l=0; l<level; ++l )
     {
-      n = n->_child[0].second->as_node();
+      n = n->at(0).second->as_node();
     }
     return { n };
   }
@@ -440,7 +452,7 @@ public:
     node_type *n = _root->as_node();
     for( int l=0; l<_leaf_level; ++l )
     {
-      n = n->_child[0].second->as_node();
+      n = n->at(0).second->as_node();
     }
     return { n->as_leaf() };
   }
@@ -449,7 +461,7 @@ public:
     node_type const* n = _root->as_node();
     for( int l=0; l<_leaf_level; ++l )
     {
-      n = n->_child[0].second->as_node();
+      n = n->at(0).second->as_node();
     }
     return { n->as_leaf() };
   }

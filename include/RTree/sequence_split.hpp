@@ -1,6 +1,5 @@
 #pragma once
 
-#include <limits>
 #include <utility>
 
 #include "global.hpp"
@@ -11,15 +10,11 @@ namespace eh { namespace rtree {
 template < typename TreeType >
 struct sequence_split_t
 {
-  using geometry_type = typename TreeType::geometry_type;
-  using area_type = typename geometry_type::area_type;
-  constexpr static area_type LOWEST_AREA = std::numeric_limits<area_type>::lowest();
-
   constexpr static unsigned int MIN_ENTRIES = TreeType::MIN_ENTRIES;
   constexpr static unsigned int MAX_ENTRIES = TreeType::MAX_ENTRIES;
 
   template < typename NodeType >
-  NodeType *operator()( NodeType *node ) const
+  NodeType *operator()( NodeType *node, typename NodeType::value_type child ) const
   {
     NodeType *new_node = new NodeType;
     for( auto i=node->end()-MIN_ENTRIES; i!=node->end(); ++i )
@@ -27,6 +22,7 @@ struct sequence_split_t
       new_node->insert( std::move(*i) );
     }
     node->_child.erase( node->end()-MIN_ENTRIES, node->end() );
+    node->insert( std::move(child) );
 
     return new_node;
   }

@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
+#include <memory>
 
 namespace er = eh::rtree;
 
@@ -266,5 +267,107 @@ TEST( RTreeTest, Assign )
   for( int i=0; i<original.size(); ++i )
   {
     ASSERT_EQ( original[i], moved[i] );
+  }
+}
+
+TEST( RTreeTest, Clear )
+{
+  using rtree_type = er::RTree<er::aabb_t<int>,int,int>;
+  using traits = rtree_type::traits;
+  using bound_type = rtree_type::geometry_type;
+  using node_type = rtree_type::node_type;
+  std::mt19937 mt( std::random_device{}() );
+  std::uniform_int_distribution<int> dist( -100, 100 );
+
+  rtree_type rtree;
+  std::vector<rtree_type::value_type> original;
+
+  for( int i=0; i<1000; ++i )
+  {
+    int pos = dist(mt);
+    rtree.insert( {pos, i} );
+    original.push_back( {pos,i} );
+  }
+  std::sort( original.begin(), original.end() );
+
+  rtree.clear();
+  ASSERT_EQ( rtree.size(), 0 );
+  ASSERT_EQ( rtree.leaf_level(), 0 );
+  ASSERT_EQ( rtree.begin(), rtree.end() );
+}
+
+TEST( RTreeTest, MoveOnlyValue )
+{
+  std::vector<int> destroyed( 1000, 0 );
+  struct move_only_t
+  {
+    int i;
+    std::vector<int> *destroyed = nullptr;
+
+    void destroy()
+    {
+      if( i != -1 )
+      {
+        (*destroyed)[i]++;
+      }
+    }
+    move_only_t( int i_, std::vector<int>&d ) : i(i_), destroyed(&d) {}
+    move_only_t( move_only_t && rhs )
+    {
+      i = rhs.i;
+      destroyed = rhs.destroyed;
+      rhs.i = -1;
+    }
+    move_only_t( const move_only_t & ) = delete;
+
+    ~move_only_t()
+    {
+      destroy();
+    }
+
+    move_only_t& operator=( move_only_t && rhs )
+    {
+      destroy();
+      i = rhs.i;
+      destroyed = rhs.destroyed;
+      rhs.i = -1;
+      return *this;
+    }
+    move_only_t& operator=( const move_only_t & ) = delete;
+  };
+  using rtree_type = er::RTree<er::aabb_t<int>,int,move_only_t>;
+  using traits = rtree_type::traits;
+  using bound_type = rtree_type::geometry_type;
+  using node_type = rtree_type::node_type;
+
+
+  std::mt19937 mt( std::random_device{}() );
+  std::uniform_int_distribution<int> dist( -1000, 1000 );
+  {
+    rtree_type rtree;
+
+    for( int i=0; i<1000; ++i )
+    {
+      int p = dist(mt);
+      rtree.insert( {p, move_only_t(i,destroyed)} );
+      ASSERT_EQ( rtree.size(), i+1 );
+
+      // all data valid check
+      std::vector<bool> valid( i+1, false );
+      for( auto &x : rtree )
+      {
+        ASSERT_FALSE( valid[x.second.i] ) << "i: " << i << ", " << "x: " << x.second.i << " already exist";
+        valid[x.second.i] = true;
+      }
+      for( int x=0; x<=i; ++x )
+      {
+        ASSERT_TRUE( valid[x] ) << "i: " << i << ", " << "x: " << x << " not exist";
+      }
+    }
+    // destruction check
+  }
+  for( int i=0; i<1000; ++i )
+  {
+    ASSERT_EQ( destroyed[i], 1 ) << "i: " << i << " destroyed " << destroyed[i] << " times";
   }
 }
