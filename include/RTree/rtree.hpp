@@ -5,7 +5,6 @@ References:
 Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, University if California Berkeley
 */
 
-#include <iterator>
 #include <limits>
 #include <vector>
 #include <utility>
@@ -15,18 +14,25 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 #include "global.hpp"
 #include "iterator.hpp"
 #include "node.hpp"
+#include "static_node.hpp"
 #include "quadratic_split.hpp"
 #include "sequence_split.hpp"
+#include "geometry_traits.hpp"
 
 namespace eh { namespace rtree {
 
-template < typename GeometryType, typename KeyType, typename MappedType, unsigned int MinEntry, unsigned int MaxEntry >
+template < typename GeometryType, typename KeyType, typename MappedType, unsigned int MinEntry=4, unsigned int MaxEntry=8 >
 class RTree
 {
-  using node_base_type = node_base_t<RTree>;
 public:
-  using node_type = node_t<RTree>;
-  using leaf_type = leaf_node_t<RTree>;
+  // using node_base_type = node_base_t<RTree>;
+  // using node_type = node_t<RTree>;
+  // using leaf_type = leaf_node_t<RTree>;
+
+  // using stack allocator instead of std::vector
+  using node_base_type = static_node_base_t<RTree>;
+  using node_type = static_node_t<RTree>;
+  using leaf_type = static_leaf_node_t<RTree>;
 
   using size_type = unsigned int;
 
@@ -190,9 +196,10 @@ protected:
   template < typename NodeType >
   NodeType* split( NodeType *node, typename NodeType::value_type child )
   {
+    NodeType *pair = new NodeType;
     // @TODO another split scheme
     splitter_t spliter;
-    return spliter( node, std::move(child) );
+    return spliter( node, std::move(child), pair );
   }
 
 

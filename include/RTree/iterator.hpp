@@ -17,11 +17,11 @@ struct iterator_t
     typename LeafType::iterator
   >;
 
-  using value_type = typename child_iterator::value_type;
+  using value_type = typename std::iterator_traits<child_iterator>::value_type;
   using difference_type = std::make_signed_t<typename LeafType::size_type>;
 
-  using reference = typename child_iterator::reference;
-  using pointer = typename child_iterator::pointer;
+  using reference = typename std::iterator_traits<child_iterator>::reference;
+  using pointer = typename std::iterator_traits<child_iterator>::pointer;
 
   using iterator_category = std::bidirectional_iterator_tag;
 
@@ -55,10 +55,10 @@ struct iterator_t
 
   this_type& operator++()
   {
-    if( _pointer == &_leaf->_child.back() )
+    if( _pointer == &_leaf->at( _leaf->size()-1 ) )
     {
       _leaf = _leaf->next();
-      _pointer = _leaf ? &_leaf->_child.front() : nullptr;
+      _pointer = _leaf ? &_leaf->at(0) : nullptr;
     }else {
       ++_pointer;
     }
@@ -72,10 +72,10 @@ struct iterator_t
   }
   this_type& operator--()
   {
-    if( _pointer == &_leaf->_child.front() )
+    if( _pointer == &_leaf->at(0) )
     {
       _leaf = _leaf->prev();
-      _pointer = _leaf ? &_leaf->_child.back() : nullptr;
+      _pointer = _leaf ? &_leaf->at(_leaf->size()-1) : nullptr;
     }else {
       --_pointer;
     }

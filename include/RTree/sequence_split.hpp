@@ -14,9 +14,11 @@ struct sequence_split_t
   constexpr static unsigned int MAX_ENTRIES = TreeType::MAX_ENTRIES;
 
   template < typename NodeType >
-  NodeType *operator()( NodeType *node, typename NodeType::value_type child ) const
+  NodeType *operator()( NodeType *node, typename NodeType::value_type child, NodeType *new_node ) const
   {
-    NodeType *new_node = new NodeType;
+    assert( node->size() == MAX_ENTRIES );
+    assert( new_node );
+    assert( new_node->size() == 0 );
     for( auto i=node->end()-MIN_ENTRIES; i!=node->end(); ++i )
     {
       new_node->insert( std::move(*i) );

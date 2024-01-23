@@ -4,8 +4,10 @@
 #include <utility>
 #include <iterator>
 #include <cassert>
+#include <vector>
 
 #include "global.hpp"
+#include "geometry_traits.hpp"
 
 namespace eh { namespace rtree {
 
@@ -84,8 +86,11 @@ struct quadratic_split_t
   }
 
   template < typename NodeType >
-  NodeType* operator()( NodeType *node, typename NodeType::value_type child ) const
+  NodeType* operator()( NodeType *node, typename NodeType::value_type child, NodeType *node_pair ) const
   {
+    assert( node->size() == MAX_ENTRIES );
+    assert( node_pair );
+    assert( node_pair->size() == 0 );
     /*
     QS1. [Pick first entry for each group.]
     Apply Algorithm PickSeeds to choose two entries to be the first elements of the groups. 
@@ -112,7 +117,6 @@ struct quadratic_split_t
     geometry_type bound1 = seeds.first.first;
     geometry_type bound2 = seeds.second.first;
 
-    NodeType *node_pair = new NodeType;
     node->insert( std::move(seeds.first) );
     node_pair->insert( std::move(seeds.second) );
 

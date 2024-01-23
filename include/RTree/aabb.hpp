@@ -4,6 +4,7 @@
 
 #include "global.hpp"
 #include "point.hpp"
+#include "geometry_traits.hpp"
 
 namespace eh { namespace rtree {
 

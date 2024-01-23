@@ -1,8 +1,9 @@
 #pragma once
 
-#include <vector>
+#include <cstdint>
 #include <utility>
 #include <cassert>
+#include <iterator>
 
 #include "global.hpp"
 #include "geometry_traits.hpp"
@@ -10,17 +11,17 @@
 namespace eh { namespace rtree {
 
 template < typename TreeType >
-struct node_t;
+struct static_node_t;
 
 template < typename TreeType >
-struct leaf_node_t;
+struct static_leaf_node_t;
 
 template < typename TreeType >
-struct node_base_t
+struct static_node_base_t
 {
-  using node_base_type = node_base_t;
-  using node_type = node_t<TreeType>;
-  using leaf_type = leaf_node_t<TreeType>;
+  using node_base_type = static_node_base_t;
+  using node_type = static_node_t<TreeType>;
+  using leaf_type = static_leaf_node_t<TreeType>;
 
   using size_type = typename TreeType::size_type;
   using geometry_type = typename TreeType::geometry_type;
@@ -144,29 +145,38 @@ struct node_base_t
 };
 
 template < typename TreeType >
-struct node_t
-  : public node_base_t<TreeType>
+struct static_node_t
+  : public static_node_base_t<TreeType>
 {
-  using parent_type = node_base_t<TreeType>;
+  using parent_type = static_node_base_t<TreeType>;
   using node_base_type = parent_type;
-  using node_type = node_t;
-  using leaf_type = leaf_node_t<TreeType>;
+  using node_type = static_node_t;
+  using leaf_type = static_leaf_node_t<TreeType>;
   using size_type = typename TreeType::size_type;
   using geometry_type = typename TreeType::geometry_type;
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
   using value_type = std::pair<geometry_type,node_base_type*>;
 
-  node_t() = default;
-  node_t( node_t const& ) = delete;
-  node_t& operator=( node_t const& ) = delete;
-  node_t( node_t && ) = delete;
-  node_t& operator=( node_t && ) = delete;
+  using iterator = value_type*;
+  using const_iterator = value_type const*;
 
-  std::vector<value_type> _child;
+  alignas(value_type) uint8_t _data[ sizeof(value_type) * TreeType::MAX_ENTRIES ];
+  size_type _size = 0;
 
-  using iterator = typename decltype(_child)::iterator;
-  using const_iterator = typename decltype(_child)::const_iterator;
+  static_node_t() = default;
+  static_node_t( static_node_t const& ) = delete;
+  static_node_t& operator=( static_node_t const& ) = delete;
+  static_node_t( static_node_t && ) = delete;
+  static_node_t& operator=( static_node_t && ) = delete;
+
+  ~static_node_t()
+  {
+    for( auto &c : *this )
+    {
+      c.~value_type();
+    }
+  }
 
   // add child node with bounding box
   void insert( value_type child )
@@ -174,18 +184,21 @@ struct node_t
     assert( size() < TreeType::MAX_ENTRIES );
     child.second->_parent = this;
     child.second->_index_on_parent = size();
-    _child.push_back( std::move(child) );
+    new (data()+size()) value_type( std::move(child) );
+    ++_size;
   }
   void erase( node_base_type *node )
   {
+    assert( node->_parent == this );
     assert( size() > 0 );
     if( node->_index_on_parent < size()-1 )
     {
-      _child.back().second->_index_on_parent = node->_index_on_parent;
-      _child[node->_index_on_parent] = std::move(_child.back());
+      back().second->_index_on_parent = node->_index_on_parent;
+      at(node->_index_on_parent) = std::move( back() );
     }
     node->_parent = nullptr;
-    _child.pop_back();
+    back().~value_type();
+    --_size;
   }
   void erase( iterator pos )
   {
@@ -194,50 +207,54 @@ struct node_t
 
   void clear()
   {
-    _child.clear();
+    for( auto &c : *this )
+    {
+      c.~value_type();
+    }
+    _size = 0;
   }
 
   // child count
   size_type size() const
   {
-    return _child.size();
+    return _size;
   }
   bool empty() const
   {
-    return _child.empty();
+    return _size == 0;
   }
   // child iterator
   iterator begin()
   {
-    return _child.begin();
+    return data();
   }
   // child iterator
   const_iterator begin() const
   {
-    return _child.begin();
+    return data();
   }
   // child iterator
   iterator end()
   {
-    return _child.end();
+    return data() + size();
   }
   // child iterator
   const_iterator end() const
   {
-    return _child.end();
+    return data() + size();
   }
 
   value_type& at( size_type i )
   {
     assert( i >= 0 );
     assert( i < size() );
-    return _child[i];
+    return data()[i];
   }
   value_type const& at( size_type i ) const
   {
     assert( i >= 0 );
     assert( i < size() );
-    return _child[i];
+    return data()[i];
   }
   value_type& operator[]( size_type i )
   {
@@ -267,13 +284,14 @@ struct node_t
     assert( size() > 0 );
     return at( size()-1 );
   }
-  value_type* data()
+
+  value_type *data()
   {
-    return _child.data();
+    return reinterpret_cast<value_type*>( _data );
   }
   value_type const* data() const
   {
-    return _child.data();
+    return reinterpret_cast<value_type const*>( _data );
   }
 
   // union bouinding box of children
@@ -310,7 +328,6 @@ struct node_t
   node_type *clone_recursive( int leaf_level ) const
   {
     node_type *new_node = new node_type;
-    new_node->_child.reserve( size() );
     if( leaf_level == 1 )
     {
       // child is leaf node
@@ -367,101 +384,111 @@ struct node_t
   {
     return parent_type::prev()->as_node();
   }
-
-
 };
 
 template < typename TreeType >
-struct leaf_node_t
-  : public node_base_t<TreeType>
+struct static_leaf_node_t
+  : public static_node_base_t<TreeType>
 {
-  using parent_type = node_base_t<TreeType>;
+  using parent_type = static_node_base_t<TreeType>;
   using node_base_type = parent_type;
-  using node_type = node_t<TreeType>;
-  using leaf_type = leaf_node_t;
+  using node_type = static_node_t<TreeType>;
+  using leaf_type = static_leaf_node_t;
   using size_type = typename TreeType::size_type;
   using geometry_type = typename TreeType::geometry_type;
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
   using value_type = std::pair<key_type,mapped_type>;
 
-  std::vector<value_type> _child;
+  using iterator = value_type*;
+  using const_iterator = value_type const*;
 
-  using iterator = typename decltype(_child)::iterator;
-  using const_iterator = typename decltype(_child)::const_iterator;
+  alignas(value_type) uint8_t _data[ sizeof(value_type) * TreeType::MAX_ENTRIES ];
+  size_type _size = 0;
 
-  leaf_node_t() = default;
-  leaf_node_t( leaf_node_t const& ) = delete;
-  leaf_node_t& operator=( leaf_node_t const& ) = delete;
-  leaf_node_t( leaf_node_t && ) = delete;
-  leaf_node_t& operator=( leaf_node_t && ) = delete;
+  static_leaf_node_t() = default;
+  static_leaf_node_t( static_leaf_node_t const& ) = delete;
+  static_leaf_node_t& operator=( static_leaf_node_t const& ) = delete;
+  static_leaf_node_t( static_leaf_node_t && ) = delete;
+  static_leaf_node_t& operator=( static_leaf_node_t && ) = delete;
+
+  ~static_leaf_node_t()
+  {
+    for( auto &c : *this )
+    {
+      c.~value_type();
+    }
+  }
 
   // add child node with bounding box
   void insert( value_type child )
   {
     assert( size() < TreeType::MAX_ENTRIES );
-    _child.push_back( std::move(child) );
+    new (data()+size()) value_type( std::move(child) );
+    ++_size;
   }
-  void erase( iterator pos )
-  {
-    erase( &*pos );
-  }
-  void erase( value_type *data )
+  void erase( value_type *pos )
   {
     assert( size() > 0 );
-    if( std::distance(_child.data(),data) != size()-1 )
+    assert( std::distance(data(),pos) < size() );
+    if( std::distance(data(),pos) < size()-1 )
     {
-      *data = std::move( _child.back() );
+      *pos = std::move( back() );
     }
-    _child.pop_back();
+    back().~value_type();
+    --_size;
   }
 
   void clear()
   {
-    _child.clear();
+    for( auto &c : *this )
+    {
+      c.~value_type();
+    }
+    _size = 0;
   }
 
   // child count
   size_type size() const
   {
-    return _child.size();
+    return _size;
   }
   bool empty() const
   {
-    return _child.empty();
+    return _size == 0;
   }
   // child iterator
   iterator begin()
   {
-    return _child.begin();
+    return data();
   }
   // child iterator
   const_iterator begin() const
   {
-    return _child.begin();
+    return data();
   }
   // child iterator
   iterator end()
   {
-    return _child.end();
+    return data() + size();
   }
   // child iterator
   const_iterator end() const
   {
-    return _child.end();
+    return data() + size();
   }
 
   value_type& at( size_type i )
   {
     assert( i >= 0 );
     assert( i < size() );
-    return _child[i];
+    return data()[i];
   }
   value_type const& at( size_type i ) const
   {
     assert( i >= 0 );
     assert( i < size() );
-    return _child[i];
+    return data()[i];
   }
   value_type& operator[]( size_type i )
   {
@@ -491,13 +518,13 @@ struct leaf_node_t
     assert( size() > 0 );
     return at( size()-1 );
   }
-  value_type* data()
+  value_type *data()
   {
-    return _child.data();
+    return reinterpret_cast<value_type*>( _data );
   }
   value_type const* data() const
   {
-    return _child.data();
+    return reinterpret_cast<value_type const*>( _data );
   }
 
   // union bouinding box of children
@@ -519,7 +546,10 @@ struct leaf_node_t
   leaf_type *clone_recursive() const
   {
     leaf_type *new_node = new leaf_type;
-    new_node->_child = _child;
+    for( auto &c : *this )
+    {
+      new_node->insert( c );
+    }
     return new_node;
   }
   size_type size_recursive() const
