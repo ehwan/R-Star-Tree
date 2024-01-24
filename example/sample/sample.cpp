@@ -59,5 +59,25 @@ int main()
       // return true to stop searching
     }
   );
+
+
+  // access node data directly
+  rtree_type::node_type* node = rtree.root();
+
+  // if 'node' is on leaf level, must cast it to leaf_type
+  if( rtree.leaf_level() == 0 )
+  {
+    rtree_type::leaf_type* leaf = reinterpret_cast<rtree_type::leaf_type*>(node);
+    // can be simplified to:
+    // rtree_type::leaf_type* leaf = node->as_leaf();
+  }
+
+  // begin(), end() implemented on node|leaf _type
+  for( auto child : *node )
+  {
+    auto child_bounding_box = child.first; // bounding box
+    auto *child_node = child.second->as_node(); // child node pointer
+  }
+
   return 0;
 }
