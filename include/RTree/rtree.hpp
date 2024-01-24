@@ -491,7 +491,7 @@ public:
 
   node_type *root() const
   {
-    return _root;
+    return _root->as_node();
   }
 
   int leaf_level() const

@@ -9,7 +9,7 @@ C++ template RTree header only library.
 ## Dependencies
  **No dependencies required** for core library.
 
- Unit Tests are using `Google Test`, examples are using `Eigen`.
+ Unit Tests are using [Google Test](https://github.com/google/googletest), examples are using [Eigen](https://eigen.tuxfamily.org/).
 
 ## Sample Codes
 
@@ -232,3 +232,10 @@ On the far right, there are green dots representing input points (N = 300). Thes
 The bounding boxes on the graph indicate the coverage range of each node. Additionally, the thickness and color of these bounding boxes are about their respective levels. 'blue', 'orange', and 'black' are used to represent levels 2, 1, and 0, respectively.
 
 Purple dots represent input points (N = 300), generated from a normal distribution with an origin of (0,0), a mean ($\mu$) of 0, and a standard deviation ($\sigma$) of 5.
+
+
+### Spatial Indexing and Raycasting
+
+[This Project](https://github.com/ehwan/RayTracing)
+
+![](example/teapot_diffusive_reflection.png)
