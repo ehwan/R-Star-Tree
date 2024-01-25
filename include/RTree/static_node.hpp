@@ -307,27 +307,27 @@ struct static_node_t
   }
 
   // delete its child recursively
-  void delete_recursive( int leaf_level )
+  void delete_recursive( int leaf_level, TreeType& tree )
   {
     if( leaf_level == 1 )
     {
       // child is leaf node
       for( auto &c : *this )
       {
-        c.second->as_leaf()->delete_recursive();
-        delete c.second->as_leaf();
+        c.second->as_leaf()->delete_recursive( tree );
+        tree.destroy_node( c.second->as_leaf() );
       }
     }else {
       for( auto &c : *this )
       {
-        c.second->as_node()->delete_recursive( leaf_level-1 );
-        delete c.second->as_node();
+        c.second->as_node()->delete_recursive( leaf_level-1, tree );
+        tree.destroy_node( c.second->as_node() );
       }
     }
   }
-  node_type *clone_recursive( int leaf_level ) const
+  node_type *clone_recursive( int leaf_level, TreeType& tree ) const
   {
-    node_type *new_node = new node_type;
+    node_type *new_node = tree.template construct_node<node_type>();
     if( leaf_level == 1 )
     {
       // child is leaf node
@@ -335,7 +335,7 @@ struct static_node_t
       {
         new_node->insert({
           c.first, 
-          c.second->as_leaf()->clone_recursive()
+          c.second->as_leaf()->clone_recursive( tree )
         });
       }
     }else {
@@ -343,7 +343,7 @@ struct static_node_t
       {
         new_node->insert({
           c.first,
-          c.second->as_node()->clone_recursive( leaf_level-1 )
+          c.second->as_node()->clone_recursive( leaf_level-1, tree )
         });
       }
     }
@@ -540,12 +540,12 @@ struct static_leaf_node_t
   }
 
   // delete its child recursively
-  void delete_recursive()
+  void delete_recursive( TreeType& tree )
   {
   }
-  leaf_type *clone_recursive() const
+  leaf_type *clone_recursive( TreeType &tree ) const
   {
-    leaf_type *new_node = new leaf_type;
+    leaf_type *new_node = tree.template construct_node<leaf_type>();
     for( auto &c : *this )
     {
       new_node->insert( c );

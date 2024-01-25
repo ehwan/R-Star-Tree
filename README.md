@@ -97,6 +97,14 @@ int main()
     auto child_bounding_box = child.first; // bounding box
     auto *child_node = child.second->as_node(); // child node pointer
   }
+
+  // leaf's child is value_type
+  for( auto &leaf_child : *node->as_leaf() )
+  {
+    auto child_bounding_box = leaf_child.first;
+    auto &child_data = leaf_child.second;
+  }
+
   return 0;
 }
 ```

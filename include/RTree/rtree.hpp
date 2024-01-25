@@ -10,6 +10,7 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 #include <utility>
 #include <algorithm>
 #include <cassert>
+#include <memory>
 
 #include "global.hpp"
 #include "iterator.hpp"
@@ -21,7 +22,14 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 namespace eh { namespace rtree {
 
-template < typename GeometryType, typename KeyType, typename MappedType, unsigned int MinEntry=4, unsigned int MaxEntry=8 >
+template <
+  typename GeometryType, // bounding box representation
+  typename KeyType,      // key type, either bounding box or point
+  typename MappedType,   // mapped type, user defined
+  unsigned int MinEntry=4, // m
+  unsigned int MaxEntry=8, // M
+  template < typename _T > class Allocator=std::allocator // allocator
+>
 class RTree
 {
 public:
@@ -29,7 +37,7 @@ public:
   // using node_type = node_t<RTree>;
   // using leaf_type = leaf_node_t<RTree>;
 
-  // using stack allocator instead of std::vector
+  // using stack memory for MaxEntries child nodes. instead of std::vector
   using node_base_type = static_node_base_t<RTree>;
   using node_type = static_node_t<RTree>;
   using leaf_type = static_leaf_node_t<RTree>;
@@ -41,6 +49,9 @@ public:
   using key_type = KeyType;
   using mapped_type = MappedType;
   using value_type = std::pair<key_type, mapped_type>;
+
+  template < typename __T >
+  using allocator_type = Allocator<__T>;
 
   // type for area
   using area_type = typename geometry_traits<geometry_type>::area_type;
@@ -67,6 +78,9 @@ protected:
   node_base_type *_root = nullptr;
   int _leaf_level = 0;
 
+  allocator_type<node_type> _node_allocator;
+  allocator_type<leaf_type> _leaf_allocator;
+
   void delete_if()
   {
     if( _root )
@@ -74,11 +88,11 @@ protected:
       if( _leaf_level == 0 )
       {
         // root is leaf node
-        _root->as_leaf()->delete_recursive();
-        delete _root->as_leaf();
+        _root->as_leaf()->delete_recursive( *this );
+        destroy_node( _root->as_leaf() );
       }else {
-        _root->as_node()->delete_recursive( _leaf_level );
-        delete _root->as_node();
+        _root->as_node()->delete_recursive( _leaf_level, *this );
+        destroy_node( _root->as_node() );
       }
     }
   }
@@ -92,7 +106,7 @@ protected:
   {
     if( _root == nullptr )
     {
-      _root = new leaf_type;
+      _root = construct_node<leaf_type>();
       _leaf_level = 0;
     }
   }
@@ -176,7 +190,7 @@ protected:
     {
       if( parent == _root )
       {
-        node_type *new_root = new node_type;
+        node_type *new_root = construct_node<node_type>();
         new_root->insert( {parent->calculate_bound(), parent} );
         new_root->insert( {pair->calculate_bound(), pair} );
         _root = new_root;
@@ -196,7 +210,7 @@ protected:
   template < typename NodeType >
   NodeType* split( NodeType *node, typename NodeType::value_type child )
   {
-    NodeType *pair = new NodeType;
+    NodeType *pair = construct_node<NodeType>();
     // @TODO another split scheme
     splitter_t spliter;
     return spliter( node, std::move(child), pair );
@@ -220,7 +234,7 @@ public:
     {
       if( chosen->parent() == nullptr )
       {
-        node_type *new_root = new node_type;
+        node_type *new_root = construct_node<node_type>();
         new_root->insert( {chosen->calculate_bound(), chosen} );
         new_root->insert( {pair->calculate_bound(), pair} );
         _root = new_root;
@@ -274,7 +288,7 @@ public:
       {
         node_base_type *child = _root->as_node()->at(0).second;
         _root->as_node()->erase( child );
-        delete _root->as_node();
+        destroy_node( _root->as_node() );
         _root = child;
         --_leaf_level;
       }
@@ -291,14 +305,14 @@ public:
         {
           insert( std::move( c ) );
         }
-        delete reinsert.second->as_leaf();
+        destroy_node( reinsert.second->as_leaf() );
       }else {
         for( auto &c : *reinsert.second->as_node() )
         {
           node_type *chosen = choose_insert_target( c.first, _leaf_level-reinsert.first );
           insert_node( c.first, c.second, chosen );
         }
-        delete reinsert.second->as_node();
+        destroy_node( reinsert.second->as_node() );
       }
     }
   }
@@ -331,10 +345,10 @@ public:
   {
     if( rhs._leaf_level == 0 )
     {
-      _root = rhs._root->as_leaf()->clone_recursive();
+      _root = rhs._root->as_leaf()->clone_recursive( *this );
       _leaf_level = 0;
     }else {
-      _root = rhs._root->as_node()->clone_recursive( rhs._leaf_level );
+      _root = rhs._root->as_node()->clone_recursive( rhs._leaf_level, *this );
       _leaf_level = rhs._leaf_level;
     }
   }
@@ -345,10 +359,10 @@ public:
     delete_if();
     if( rhs._leaf_level == 0 )
     {
-      _root = rhs._root->as_leaf()->clone_recursive();
+      _root = rhs._root->as_leaf()->clone_recursive( *this );
       _leaf_level = 0;
     }else {
-      _root = rhs._root->as_node()->clone_recursive( rhs._leaf_level );
+      _root = rhs._root->as_node()->clone_recursive( rhs._leaf_level, *this );
       _leaf_level = rhs._leaf_level;
     }
     return *this;
@@ -489,7 +503,11 @@ public:
     return {};
   }
 
-  node_type *root() const
+  node_type *root()
+  {
+    return _root->as_node();
+  }
+  node_type const* root() const
   {
     return _root->as_node();
   }
@@ -499,9 +517,41 @@ public:
     return _leaf_level;
   }
 
+  auto& node_allocator()
+  {
+    return _node_allocator;
+  }
+  auto& leaf_allocator()
+  {
+    return _leaf_allocator;
+  }
+
+  template < typename NodeType >
+  typename std::enable_if< std::is_same<NodeType,node_type>::value, NodeType* >::type
+  construct_node()
+  {
+    return new ( node_allocator().allocate(1) ) NodeType;
+  }
+  template < typename NodeType >
+  typename std::enable_if< std::is_same<NodeType,leaf_type>::value, NodeType* >::type
+  construct_node()
+  {
+    return new ( leaf_allocator().allocate(1) ) NodeType;
+  }
+  void destroy_node( node_type *node )
+  {
+    node->~node_type();
+    node_allocator().deallocate( node, 1 );
+  }
+  void destroy_node( leaf_type *node )
+  {
+    node->~leaf_type();
+    leaf_allocator().deallocate( node, 1 );
+  }
+
 protected:
-  template < typename _GeometryType, typename Functor >
-  bool search_overlap_wrapper( node_type *node, int leaf, _GeometryType const& search_range, Functor functor )
+  template < typename _NodeType, typename _GeometryType, typename Functor >
+  static bool search_overlap_wrapper( _NodeType *node, int leaf, _GeometryType const& search_range, Functor functor )
   {
     if( leaf == 0 )
     {
@@ -516,8 +566,8 @@ protected:
     return false;
   }
 
-  template < typename _GeometryType, typename Functor >
-  bool search_inside_wrapper( node_type *node, int leaf, _GeometryType const& search_range, Functor functor )
+  template < typename _NodeType, typename _GeometryType, typename Functor >
+  static bool search_inside_wrapper( _NodeType *node, int leaf, _GeometryType const& search_range, Functor functor )
   {
     if( leaf == 0 )
     {
@@ -531,8 +581,8 @@ protected:
     }
     return false;
   }
-  template < typename _GeometryType, typename Functor >
-  bool search_overlap_leaf_wrapper( leaf_type *node, _GeometryType const& search_range, Functor functor )
+  template < typename _LeafType, typename _GeometryType, typename Functor >
+  static bool search_overlap_leaf_wrapper( _LeafType *node, _GeometryType const& search_range, Functor functor )
   {
     for( auto &c : *node )
     {
@@ -541,8 +591,9 @@ protected:
     }
     return false;
   }
-  template < typename _GeometryType, typename Functor >
-  bool search_inside_leaf_wrapper( leaf_type *node, _GeometryType const& search_range, Functor functor )
+
+  template < typename _LeafType, typename _GeometryType, typename Functor >
+  static bool search_inside_leaf_wrapper( _LeafType *node, _GeometryType const& search_range, Functor functor )
   {
     for( auto &c : *node )
     {
@@ -557,12 +608,22 @@ public:
   template < typename _GeometryType, typename Functor >
   void search_inside( _GeometryType const& search_range, Functor functor )
   {
-    search_inside_wrapper( _root->as_node(), _leaf_level, search_range, functor );
+    search_inside_wrapper( root()->as_node(), _leaf_level, search_range, functor );
   }
   template < typename _GeometryType, typename Functor >
   void search_overlap( _GeometryType const& search_range, Functor functor )
   {
-    search_overlap_wrapper( _root->as_node(), _leaf_level, search_range, functor );
+    search_overlap_wrapper( root()->as_node(), _leaf_level, search_range, functor );
+  }
+  template < typename _GeometryType, typename Functor >
+  void search_inside( _GeometryType const& search_range, Functor functor ) const
+  {
+    search_inside_wrapper( root()->as_node(), _leaf_level, search_range, functor );
+  }
+  template < typename _GeometryType, typename Functor >
+  void search_overlap( _GeometryType const& search_range, Functor functor ) const
+  {
+    search_overlap_wrapper( root()->as_node(), _leaf_level, search_range, functor );
   }
 
 };

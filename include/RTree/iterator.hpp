@@ -12,7 +12,7 @@ struct iterator_t
 {
   using this_type = iterator_t<LeafType>;
   using child_iterator = std::conditional_t<
-    std::is_const_v<LeafType>,
+    std::is_const<LeafType>::value,
     typename LeafType::const_iterator,
     typename LeafType::iterator
   >;
