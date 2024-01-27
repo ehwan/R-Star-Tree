@@ -197,8 +197,7 @@ struct static_node_t
       at(node->_index_on_parent) = std::move( back() );
     }
     node->_parent = nullptr;
-    back().~value_type();
-    --_size;
+    pop_back();
   }
   void erase( iterator pos )
   {
@@ -212,6 +211,24 @@ struct static_node_t
       c.~value_type();
     }
     _size = 0;
+  }
+
+  // swap two different child node (i, j)
+  void swap( size_type i, size_type j )
+  {
+    assert( i != j );
+    assert( i < size() );
+    assert( j < size() );
+
+    std::swap( at(i), at(j) );
+    at(i).second->_index_on_parent = i;
+    at(j).second->_index_on_parent = j;
+  }
+  void pop_back()
+  {
+    assert( size() > 0 );
+    back().~value_type();
+    --_size;
   }
 
   // child count
@@ -435,8 +452,7 @@ struct static_leaf_node_t
     {
       *pos = std::move( back() );
     }
-    back().~value_type();
-    --_size;
+    pop_back();
   }
 
   void clear()
@@ -446,6 +462,22 @@ struct static_leaf_node_t
       c.~value_type();
     }
     _size = 0;
+  }
+
+  // swap two different child node (i, j)
+  void swap( size_type i, size_type j )
+  {
+    assert( i != j );
+    assert( i < size() );
+    assert( j < size() );
+
+    std::swap( at(i), at(j) );
+  }
+  void pop_back()
+  {
+    assert( size() > 0 );
+    back().~value_type();
+    --_size;
   }
 
   // child count

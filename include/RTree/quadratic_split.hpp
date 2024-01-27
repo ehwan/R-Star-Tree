@@ -2,9 +2,8 @@
 
 #include <limits>
 #include <utility>
-#include <iterator>
 #include <cassert>
-#include <vector>
+#include <cmath>
 
 #include "global.hpp"
 #include "geometry_traits.hpp"
@@ -23,74 +22,13 @@ struct quadratic_split_t
   constexpr static unsigned int MIN_ENTRIES = TreeType::MIN_ENTRIES;
   constexpr static unsigned int MAX_ENTRIES = TreeType::MAX_ENTRIES;
 
-  template < typename ValueType >
-  std::pair<ValueType,ValueType>
-  pick_seed( std::vector<ValueType> &nodes ) const
-  {
-    /*
-    PS1. [Calculate inefficiency of grouping entries together.]
-    For each pair of entries E1 and E2, compose a rectangle J including E1.I and E2.I. 
-    Calculate d = area(J) - area(E1.I) - area(E2.I)
-
-    PS2. [Choose the most wasteful pair.]
-    Choose the pair with the largest d.
-    */
-    int n1 = 0, n2 = 0;
-    area_type max_wasted_area = LOWEST_AREA;
-
-    // choose two nodes that would waste the most area if both were put in the same group
-    for( int i=0; i<nodes.size()-1; ++i )
-    {
-      for( int j=i+1; j<nodes.size(); ++j )
-      {
-        const auto J = traits::merge(nodes[i].first, nodes[j].first);
-        const area_type wasted_area = traits::area(J) - traits::area(nodes[i].first) - traits::area(nodes[j].first);
-
-        if( wasted_area > max_wasted_area )
-        {
-          max_wasted_area = wasted_area;
-          n1 = i;
-          n2 = j;
-        }
-        // if same wasted area, choose pair with small intersection area
-        else if( wasted_area == max_wasted_area )
-        {
-          if( traits::area(traits::intersection(nodes[i].first,nodes[j].first)) <
-              traits::area(traits::intersection(nodes[n1].first,nodes[n2].first)) )
-          {
-            n1 = i;
-            n2 = j;
-          }
-        }
-      }
-    }
-
-    auto ret1 = std::move( nodes[n1] );
-    auto ret2 = std::move( nodes[n2] );
-    if( n1 > n2 )
-    {
-      std::swap( n1, n2 );
-    }
-    if( n2 < nodes.size()-1 )
-    {
-      nodes[n2] = std::move( nodes.back() );
-    }
-    nodes.pop_back();
-    if( n1 < nodes.size()-1 )
-    {
-      nodes[n1] = std::move( nodes.back() );
-    }
-    nodes.pop_back();
-
-    return { std::move(ret1), std::move(ret2) };
-  }
-
   template < typename NodeType >
-  NodeType* operator()( NodeType *node, typename NodeType::value_type child, NodeType *node_pair ) const
+  NodeType* operator()( NodeType *node, typename NodeType::value_type new_child, NodeType *node_pair ) const
   {
     assert( node->size() == MAX_ENTRIES );
     assert( node_pair );
     assert( node_pair->size() == 0 );
+
     /*
     QS1. [Pick first entry for each group.]
     Apply Algorithm PickSeeds to choose two entries to be the first elements of the groups. 
@@ -108,19 +46,113 @@ struct quadratic_split_t
     then to the one with fewer entries, then to either. 
     Repeat from QS2.
     */
-    std::vector<typename NodeType::value_type> childs = 
-      { std::make_move_iterator(node->begin()), std::make_move_iterator(node->end()) };
-    node->clear();
-    childs.emplace_back( std::move(child) );
 
-    auto seeds = pick_seed( childs );
-    geometry_type bound1 = seeds.first.first;
-    geometry_type bound2 = seeds.second.first;
+    /*
+    ************************** Peek Seeds **************************
+    PS1. [Calculate inefficiency of grouping entries together.]
+    For each pair of entries E1 and E2, compose a rectangle J including E1.I and E2.I. 
+    Calculate d = area(J) - area(E1.I) - area(E2.I)
 
-    node->insert( std::move(seeds.first) );
-    node_pair->insert( std::move(seeds.second) );
+    PS2. [Choose the most wasteful pair.]
+    Choose the pair with the largest d.
+    */
+    {
+    int n1 = 0, n2 = 0;
+    area_type max_wasted_area = LOWEST_AREA;
 
-    while( childs.empty() == false )
+    // choose two nodes that would waste the most area if both were put in the same group
+    // for each pair (i,j) such that ( i in *node.child AND j in *node.child AND i < j )
+    for( int i=0; i<node->size()-1; ++i )
+    {
+      for( int j=i+1; j<node->size(); ++j )
+      {
+        const auto J = traits::merge(node->at(i).first, node->at(j).first);
+        const area_type wasted_area = traits::area(J) - traits::area(node->at(i).first) - traits::area(node->at(j).first);
+
+        if( wasted_area > max_wasted_area )
+        {
+          max_wasted_area = wasted_area;
+          n1 = i;
+          n2 = j;
+        }
+        // if same wasted area, choose pair with small intersection area
+        else if( wasted_area == max_wasted_area )
+        {
+          if( traits::area(traits::intersection(node->at(i).first,node->at(j).first)) <
+              traits::area(traits::intersection(node->at(n1).first,node->at(n2).first)) )
+          {
+            n1 = i;
+            n2 = j;
+          }
+        }
+      }
+    }
+
+
+    // for each pair (i,j) such that ( i is new_child AND j in *node.child )
+    for( int j=0; j<node->size(); ++j )
+    {
+      const auto J = traits::merge(new_child.first, node->at(j).first);
+      const area_type wasted_area = traits::area(J) - traits::area(new_child.first) - traits::area(node->at(j).first);
+
+      if( wasted_area > max_wasted_area )
+      {
+        max_wasted_area = wasted_area;
+        n1 = -1;
+        n2 = j;
+      }
+      // if same wasted area, choose pair with small intersection area
+      else if( wasted_area == max_wasted_area )
+      {
+        if( n1 == -1 )
+        {
+          if( traits::area(traits::intersection(new_child.first,node->at(j).first)) <
+              traits::area(traits::intersection(new_child.first,node->at(n2).first)) )
+          {
+            n1 = -1;
+            n2 = j;
+          }
+        }else {
+          if( traits::area(traits::intersection(new_child.first,node->at(j).first)) <
+              traits::area(traits::intersection(node->at(n1).first,node->at(n2).first)) )
+          {
+            n1 = -1;
+            n2 = j;
+          }
+        }
+      }
+    }
+
+    if( n1 == -1 )
+    {
+      // insert
+      // n1 -> node_pair[0]
+      // n2 -> node[0]
+      node_pair->insert( std::move(new_child) );
+      if( n2 != 0 )
+      {
+        node->swap( 0, n2 );
+      }
+    }else {
+      // Note.
+      // n1 is still valid after erase() since n1 < n2
+      auto n2_data = std::move(node->at(n2));
+      node->erase( node->begin()+n2 );
+      node_pair->insert( std::move(n2_data) );
+      if( n1 != 0 )
+      {
+        node->swap( 0, n1 );
+      }
+      node->insert( std::move(new_child) );
+    }
+    }
+    // ************************* Peek Seeds End *************************
+
+    typename NodeType::size_type count1 = 1;
+    geometry_type bound1 = node->at(0).first;
+    geometry_type bound2 = node_pair->at(0).first;
+
+    while( count1+node_pair->size() < MAX_ENTRIES+1 )
     {
       /*
       PN1. [Determine cost of putting each entry in each group.]
@@ -131,32 +163,31 @@ struct quadratic_split_t
       PN2. [Find entry with greatest preference for one group.]
       Choose any entry with the maximum difference between d1 and d2.
       */
-      if( node->size() + childs.size() == MIN_ENTRIES )
+      const typename NodeType::size_type node_left = MAX_ENTRIES+1 - (count1+node_pair->size());
+      if( count1 + node_left == MIN_ENTRIES )
       {
-        for( auto &c : childs )
-        {
-          node->insert( std::move(c) );
-        }
-        childs.clear();
-      }else if( node_pair->size() + childs.size() == MIN_ENTRIES )
+        break;
+      }else if( node_pair->size() + node_left == MIN_ENTRIES )
       {
-        for( auto &c : childs )
+        for( typename NodeType::size_type i=0; i<node_left; ++i )
         {
-          node_pair->insert( std::move(c) );
+          auto back_data = std::move(node->back());
+          node->pop_back();
+          node_pair->insert( std::move(back_data) );
         }
-        childs.clear();
+        break;
       }else
       {
         int picked = 0;
         int picked_to = 0;
         area_type maximum_difference = LOWEST_AREA;
 
-        for( int i=0; i<childs.size(); ++i )
+        for( typename NodeType::size_type i=count1; i<node->size(); ++i )
         {
           const area_type d1 = 
-            traits::area( traits::merge(bound1,childs[i].first) ) - traits::area(bound1);
+            traits::area( traits::merge(bound1,node->at(i).first) ) - traits::area(bound1);
           const area_type d2 = 
-            traits::area( traits::merge(bound2,childs[i].first) ) - traits::area(bound2);
+            traits::area( traits::merge(bound2,node->at(i).first) ) - traits::area(bound2);
           const auto diff = std::abs(d1 - d2);
 
           if( diff > maximum_difference )
@@ -169,18 +200,18 @@ struct quadratic_split_t
 
         if( picked_to == 0 )
         {
-          bound1 = traits::merge( bound1, childs[picked].first );
-          node->insert( std::move(childs[picked]) );
+          bound1 = traits::merge( bound1, node->at(picked).first );
+          if( picked != count1 )
+          {
+            node->swap( count1, picked );
+          }
+          ++count1;
         }else {
-          bound2 = traits::merge( bound2, childs[picked].first );
-          node_pair->insert( std::move(childs[picked]) );
+          bound2 = traits::merge( bound2, node->at(picked).first );
+          auto picked_data = std::move( node->at(picked) );
+          node->erase( node->begin()+picked );
+          node_pair->insert( std::move(picked_data) );
         }
-
-        if( picked < childs.size()-1 )
-        {
-          childs[picked] = std::move( childs.back() );
-        }
-        childs.pop_back();
       }
     }
     return node_pair;

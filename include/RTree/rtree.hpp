@@ -14,7 +14,6 @@ Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching, Unive
 
 #include "global.hpp"
 #include "iterator.hpp"
-#include "node.hpp"
 #include "static_node.hpp"
 #include "quadratic_split.hpp"
 #include "sequence_split.hpp"
@@ -33,10 +32,6 @@ template <
 class RTree
 {
 public:
-  // using node_base_type = node_base_t<RTree>;
-  // using node_type = node_t<RTree>;
-  // using leaf_type = leaf_node_t<RTree>;
-
   // using stack memory for MaxEntries child nodes. instead of std::vector
   using node_base_type = static_node_base_t<RTree>;
   using node_type = static_node_t<RTree>;
@@ -204,7 +199,8 @@ protected:
   // using splitter_t = sequence_split_t<RTree>;
   using splitter_t = quadratic_split_t<RTree>;
   
-  // 'node' contains MAX_ENTRIES+1 nodes;
+  // 'node' contains MAX_ENTRIES nodes;
+  // trying to add additional child 'child'
   // split into two nodes
   // so that two nodes' child count is in range [ MIN_ENTRIES, MAX_ENTRIES ]
   template < typename NodeType >
@@ -213,7 +209,8 @@ protected:
     NodeType *pair = construct_node<NodeType>();
     // @TODO another split scheme
     splitter_t spliter;
-    return spliter( node, std::move(child), pair );
+    spliter( node, std::move(child), pair );
+    return pair;
   }
 
 
@@ -434,6 +431,7 @@ public:
 
   node_iterator begin( int level )
   {
+    if( level > _leaf_level ){ return {}; }
     node_type *n = _root->as_node();
     for( int l=0; l<level; ++l )
     {
@@ -443,6 +441,7 @@ public:
   }
   const_node_iterator begin( int level ) const
   {
+    if( level > _leaf_level ){ return {}; }
     node_type const* n = _root->as_node();
     for( int l=0; l<level; ++l )
     {

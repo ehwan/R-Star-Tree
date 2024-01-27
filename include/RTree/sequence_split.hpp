@@ -19,12 +19,13 @@ struct sequence_split_t
     assert( node->size() == MAX_ENTRIES );
     assert( new_node );
     assert( new_node->size() == 0 );
-    for( auto i=node->end()-MIN_ENTRIES; i!=node->end(); ++i )
+    for( unsigned int i=0; i<MIN_ENTRIES; ++i )
     {
-      new_node->insert( std::move(*i) );
+      auto back_data = std::move(node->back());
+      node->pop_back();
+      new_node->insert( std::move(back_data) );
     }
-    node->_child.erase( node->end()-MIN_ENTRIES, node->end() );
-    node->insert( std::move(child) );
+    new_node->insert( std::move(child) );
 
     return new_node;
   }
