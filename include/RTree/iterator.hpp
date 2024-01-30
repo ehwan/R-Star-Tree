@@ -1,21 +1,22 @@
 #pragma once
 
+#include "global.hpp"
 #include <iterator>
 #include <type_traits>
-#include "global.hpp"
 
-namespace eh { namespace rtree {
+namespace eh
+{
+namespace rtree
+{
 
 // iterates through inserted key-value pairs
-template < typename LeafType >
+template <typename LeafType>
 struct iterator_t
 {
   using this_type = iterator_t<LeafType>;
-  using child_iterator = std::conditional_t<
-    std::is_const<LeafType>::value,
-    typename LeafType::const_iterator,
-    typename LeafType::iterator
-  >;
+  using child_iterator = std::conditional_t<std::is_const<LeafType>::value,
+                                            typename LeafType::const_iterator,
+                                            typename LeafType::iterator>;
 
   using value_type = typename std::iterator_traits<child_iterator>::value_type;
   using difference_type = std::make_signed_t<typename LeafType::size_type>;
@@ -26,26 +27,26 @@ struct iterator_t
   using iterator_category = std::bidirectional_iterator_tag;
 
   pointer _pointer;
-  LeafType *_leaf;
+  LeafType* _leaf;
 
   iterator_t()
-    : _pointer(nullptr),
-      _leaf(nullptr)
+      : _pointer(nullptr)
+      , _leaf(nullptr)
   {
   }
-  iterator_t( pointer __pointer, LeafType *__leaf )
-    : _pointer(__pointer),
-      _leaf(__leaf)
+  iterator_t(pointer __pointer, LeafType* __leaf)
+      : _pointer(__pointer)
+      , _leaf(__leaf)
   {
   }
 
-  bool operator==( this_type const& rhs ) const
+  bool operator==(this_type const& rhs) const
   {
-    return _pointer==rhs._pointer;
+    return _pointer == rhs._pointer;
   }
-  bool operator!=( this_type const& rhs ) const
+  bool operator!=(this_type const& rhs) const
   {
-    return _pointer!=rhs._pointer;
+    return _pointer != rhs._pointer;
   }
 
   LeafType* node() const
@@ -55,11 +56,13 @@ struct iterator_t
 
   this_type& operator++()
   {
-    if( _pointer == &_leaf->at( _leaf->size()-1 ) )
+    if (_pointer == &_leaf->at(_leaf->size() - 1))
     {
       _leaf = _leaf->next();
       _pointer = _leaf ? &_leaf->at(0) : nullptr;
-    }else {
+    }
+    else
+    {
       ++_pointer;
     }
     return *this;
@@ -72,11 +75,13 @@ struct iterator_t
   }
   this_type& operator--()
   {
-    if( _pointer == &_leaf->at(0) )
+    if (_pointer == &_leaf->at(0))
     {
       _leaf = _leaf->prev();
-      _pointer = _leaf ? &_leaf->at(_leaf->size()-1) : nullptr;
-    }else {
+      _pointer = _leaf ? &_leaf->at(_leaf->size() - 1) : nullptr;
+    }
+    else
+    {
       --_pointer;
     }
     return *this;
@@ -99,7 +104,7 @@ struct iterator_t
 };
 
 // iterates through same-level nodes
-template < typename NodeType >
+template <typename NodeType>
 struct node_iterator_t
 {
   using this_type = node_iterator_t<NodeType>;
@@ -112,23 +117,23 @@ struct node_iterator_t
 
   using iterator_category = std::bidirectional_iterator_tag;
 
-  NodeType *_node;
+  NodeType* _node;
 
   node_iterator_t()
-    : _node(nullptr)
+      : _node(nullptr)
   {
   }
-  node_iterator_t( NodeType *node )
-    : _node(node)
+  node_iterator_t(NodeType* node)
+      : _node(node)
   {
   }
-  bool operator==( this_type const& rhs ) const
+  bool operator==(this_type const& rhs) const
   {
-    return (_node==rhs._node);
+    return (_node == rhs._node);
   }
-  bool operator!=( this_type const& rhs ) const
+  bool operator!=(this_type const& rhs) const
   {
-    return (_node!=rhs._node);
+    return (_node != rhs._node);
   }
 
   NodeType* node() const
@@ -169,4 +174,5 @@ struct node_iterator_t
   }
 };
 
-}}
+}
+}

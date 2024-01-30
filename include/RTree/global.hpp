@@ -1,5 +1,9 @@
 #pragma once
 
-namespace eh { namespace rtree {
+namespace eh
+{
+namespace rtree
+{
 
-}}
+}
+}

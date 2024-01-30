@@ -4,9 +4,12 @@
 
 #include "global.hpp"
 
-namespace eh { namespace rtree {
+namespace eh
+{
+namespace rtree
+{
 
-template < typename ScalarType, unsigned int Dim >
+template <typename ScalarType, unsigned int Dim>
 class point_t
 {
 public:
@@ -21,41 +24,42 @@ public:
   point_t()
   {
   }
-  point_t( point_t const& rhs )
+  point_t(point_t const& rhs)
   {
-    for( size_type i=0; i<size(); ++i )
+    for (size_type i = 0; i < size(); ++i)
     {
       _data[i] = rhs._data[i];
     }
   }
-  template < typename T0, typename ... Ts >
-  point_t( T0 arg0, Ts ... args )
+  template <typename T0, typename... Ts>
+  point_t(T0 arg0, Ts... args)
   {
-    static_assert( sizeof...(args)+1 == Dim, "Constructor Dimension not match" );
-    set<0>( arg0, args... );
+    static_assert(sizeof...(args) + 1 == Dim,
+                  "Constructor Dimension not match");
+    set<0>(arg0, args...);
   }
-  template < size_type I=0, typename T0, typename ... Ts >
-  void set( T0 arg0, Ts ... args )
+  template <size_type I = 0, typename T0, typename... Ts>
+  void set(T0 arg0, Ts... args)
   {
     _data[I] = arg0;
-    set<I+1>( args... );
+    set<I + 1>(args...);
   }
-  template < size_type I >
+  template <size_type I>
   void set()
   {
   }
-  template < typename Iterator >
-  void assign( Iterator begin, Iterator end )
+  template <typename Iterator>
+  void assign(Iterator begin, Iterator end)
   {
     size_type i = 0;
-    while( begin != end && i < Dim )
+    while (begin != end && i < Dim)
     {
       _data[i++] = *begin++;
     }
   }
-  point_t& operator=( point_t const& rhs )
+  point_t& operator=(point_t const& rhs)
   {
-    for( size_type i=0; i<size(); ++i )
+    for (size_type i = 0; i < size(); ++i)
     {
       _data[i] = rhs._data[i];
     }
@@ -65,11 +69,11 @@ public:
   {
     return Dim;
   }
-  scalar_type& operator[]( size_type i )
+  scalar_type& operator[](size_type i)
   {
     return _data[i];
   }
-  scalar_type operator[]( size_type i ) const
+  scalar_type operator[](size_type i) const
   {
     return _data[i];
   }
@@ -99,4 +103,5 @@ public:
   }
 };
 
-}} // namespace eh, rtree
+}
+} // namespace eh, rtree

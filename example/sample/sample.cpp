@@ -1,7 +1,7 @@
 #include <RTree.hpp>
+#include <iostream>
 #include <iterator>
 #include <type_traits>
-#include <iostream>
 
 int main()
 {
@@ -16,74 +16,70 @@ int main()
   // using aabb_type as bounding box,
   // double as per-data key_type
   // int as per-data data_type
-  using rtree_type = eh::rtree::RTree< aabb_type, double, int >;
+  using rtree_type = eh::rtree::RTree<aabb_type, double, int>;
 
   // std::map - like member types;
   // value_type = std::pair< key_type, mapped_type >
   using value_type = rtree_type::value_type;
   using iterator = rtree_type::iterator;
   using const_iterator = rtree_type::const_iterator;
-  static_assert( 
-    std::is_same<
-      std::iterator_traits<iterator>::iterator_category,
-      std::bidirectional_iterator_tag
-    >::value,
-    "Iterators are Bidirectional Iterator"
-  );
+  static_assert(std::is_same<std::iterator_traits<iterator>::iterator_category,
+                             std::bidirectional_iterator_tag>::value,
+                "Iterators are Bidirectional Iterator");
 
   rtree_type rtree;
 
   // insert 100 arithmetic sequence of points
-  for( int i=0; i<50; ++i )
+  for (int i = 0; i < 50; ++i)
   {
     double point = i;
     int value = i;
-    rtree.insert( value_type(point, value) );
+    rtree.insert(value_type(point, value));
   }
 
   // rtree.begin(), rtree.end()
-  for( value_type value : rtree )
+  for (value_type value : rtree)
   {
-    std::cout << "Value Inserted: [" << value.first << ", " << value.second << "]\n";
+    std::cout << "Value Inserted: [" << value.first << ", " << value.second
+              << "]\n";
   }
 
   // search for points inside range [10, 20)
-  rtree.search_inside(
-    aabb_type( 10.0, 20.0-1e-9 ),
-    []( value_type const& v )
-    {
-      std::cout << "Search Result: [" << v.first << ", " << v.second << "]\n";
-      // continue searching
-      return false;
+  rtree.search_inside(aabb_type(10.0, 20.0 - 1e-9),
+                      [](value_type const& v)
+                      {
+                        std::cout << "Search Result: [" << v.first << ", "
+                                  << v.second << "]\n";
+                        // continue searching
+                        return false;
 
-      // return true to stop searching
-    }
-  );
-
+                        // return true to stop searching
+                      });
 
   // access node data directly
   rtree_type::node_type* node = rtree.root();
 
   // if 'node' is on leaf level, must cast it to leaf_type
-  if( rtree.leaf_level() == 0 )
+  if (rtree.leaf_level() == 0)
   {
-    rtree_type::leaf_type* leaf = reinterpret_cast<rtree_type::leaf_type*>(node);
+    rtree_type::leaf_type* leaf
+        = reinterpret_cast<rtree_type::leaf_type*>(node);
     // can be simplified to:
     // rtree_type::leaf_type* leaf = node->as_leaf();
   }
 
   // begin(), end() implemented on node|leaf _type
-  for( auto child : *node )
+  for (auto child : *node)
   {
     auto child_bounding_box = child.first; // bounding box
-    auto *child_node = child.second->as_node(); // child node pointer
+    auto* child_node = child.second->as_node(); // child node pointer
   }
 
   // leaf's child is value_type
-  for( auto &leaf_child : *node->as_leaf() )
+  for (auto& leaf_child : *node->as_leaf())
   {
     auto child_bounding_box = leaf_child.first;
-    auto &child_data = leaf_child.second;
+    auto& child_data = leaf_child.second;
   }
 
   return 0;

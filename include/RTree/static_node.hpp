@@ -1,22 +1,25 @@
 #pragma once
 
-#include <cstdint>
-#include <utility>
 #include <cassert>
+#include <cstdint>
 #include <iterator>
+#include <utility>
 
-#include "global.hpp"
 #include "geometry_traits.hpp"
+#include "global.hpp"
 
-namespace eh { namespace rtree {
+namespace eh
+{
+namespace rtree
+{
 
-template < typename TreeType >
+template <typename TreeType>
 struct static_node_t;
 
-template < typename TreeType >
+template <typename TreeType>
 struct static_leaf_node_t;
 
-template < typename TreeType >
+template <typename TreeType>
 struct static_node_base_t
 {
   using node_base_type = static_node_base_t;
@@ -28,11 +31,11 @@ struct static_node_base_t
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
 
-  node_type *_parent = nullptr;
+  node_type* _parent = nullptr;
   size_type _index_on_parent;
 
   // parent node's pointer
-  node_type *parent() const
+  node_type* parent() const
   {
     return _parent;
   }
@@ -41,112 +44,142 @@ struct static_node_base_t
     return _parent == nullptr;
   }
 
-
   auto& entry()
   {
-    return parent()->at( _index_on_parent );
+    return parent()->at(_index_on_parent);
   }
   auto const& entry() const
   {
-    return parent()->at( _index_on_parent );
+    return parent()->at(_index_on_parent);
   }
 
-  inline node_type *as_node()
+  inline node_type* as_node()
   {
-    return reinterpret_cast<node_type*>( this );
+    return reinterpret_cast<node_type*>(this);
   }
   inline node_type const* as_node() const
   {
-    return reinterpret_cast<node_type const*>( this );
+    return reinterpret_cast<node_type const*>(this);
   }
-  inline leaf_type *as_leaf()
+  inline leaf_type* as_leaf()
   {
-    return reinterpret_cast<leaf_type*>( this );
+    return reinterpret_cast<leaf_type*>(this);
   }
   inline leaf_type const* as_leaf() const
   {
-    return reinterpret_cast<leaf_type const*>( this );
+    return reinterpret_cast<leaf_type const*>(this);
   }
 
   // get next node on same level
   // this would return node across different parent
   // if it is last node, return nullptr
-  node_base_type *next()
+  node_base_type* next()
   {
     // if n is root
-    if( _parent == nullptr ){ return nullptr; }
+    if (_parent == nullptr)
+    {
+      return nullptr;
+    }
 
     // if n is last node on parent
     // return parent's next's 0th child node
-    if( _index_on_parent == parent()->size()-1 )
+    if (_index_on_parent == parent()->size() - 1)
     {
-      node_type *n = parent()->next();
-      if( n == nullptr ){ return nullptr; }
+      node_type* n = parent()->next();
+      if (n == nullptr)
+      {
+        return nullptr;
+      }
       return n->front().second;
-    }else {
+    }
+    else
+    {
       // else; return next node in same parent
-      return parent()->at( _index_on_parent+1 ).second;
+      return parent()->at(_index_on_parent + 1).second;
     }
   }
   node_base_type const* next() const
   {
     // if n is root
-    if( this->_parent == nullptr ){ return nullptr; }
+    if (this->_parent == nullptr)
+    {
+      return nullptr;
+    }
 
     // if n is last node on parent
     // return parent's next's 0th child node
-    if( this->_index_on_parent == parent()->size()-1 )
+    if (this->_index_on_parent == parent()->size() - 1)
     {
       node_type const* n = parent()->next();
-      if( n == nullptr ){ return nullptr; }
+      if (n == nullptr)
+      {
+        return nullptr;
+      }
       return n->front().second;
-    }else {
+    }
+    else
+    {
       // else; return next node in same parent
-      return parent()->at( _index_on_parent+1 ).second;
+      return parent()->at(_index_on_parent + 1).second;
     }
   }
   // get prev node on same level
   // this would return node across different parent
   // if it is first node, return nullptr
-  node_base_type *prev()
+  node_base_type* prev()
   {
     // if n is root
-    if( this->_parent == nullptr ){ return nullptr; }
+    if (this->_parent == nullptr)
+    {
+      return nullptr;
+    }
 
     // if n is last node on parent
     // return parent's next's 0th child node
-    if( this->_index_on_parent == 0 )
+    if (this->_index_on_parent == 0)
     {
-      node_type *n = parent()->prev();
-      if( n == nullptr ){ return nullptr; }
+      node_type* n = parent()->prev();
+      if (n == nullptr)
+      {
+        return nullptr;
+      }
       return n->back().second;
-    }else {
+    }
+    else
+    {
       // else; return next node in same parent
-      return parent()->at( _index_on_parent-1 ).second;
+      return parent()->at(_index_on_parent - 1).second;
     }
   }
   node_base_type const* prev() const
   {
     // if n is root
-    if( this->_parent == nullptr ){ return nullptr; }
+    if (this->_parent == nullptr)
+    {
+      return nullptr;
+    }
 
     // if n is last node on parent
     // return parent's next's 0th child node
-    if( this->_index_on_parent == 0 )
+    if (this->_index_on_parent == 0)
     {
       node_type const* n = parent()->prev();
-      if( n == nullptr ){ return nullptr; }
+      if (n == nullptr)
+      {
+        return nullptr;
+      }
       return n->back().second;
-    }else {
+    }
+    else
+    {
       // else; return next node in same parent
-      return parent()->at( _index_on_parent-1 ).second;
+      return parent()->at(_index_on_parent - 1).second;
     }
   }
 };
 
-template < typename TreeType >
-struct static_node_t
-  : public static_node_base_t<TreeType>
+template <typename TreeType>
+struct static_node_t : public static_node_base_t<TreeType>
 {
   using parent_type = static_node_base_t<TreeType>;
   using node_base_type = parent_type;
@@ -156,57 +189,57 @@ struct static_node_t
   using geometry_type = typename TreeType::geometry_type;
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
-  using value_type = std::pair<geometry_type,node_base_type*>;
+  using value_type = std::pair<geometry_type, node_base_type*>;
 
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  alignas(value_type) uint8_t _data[ sizeof(value_type) * TreeType::MAX_ENTRIES ];
+  alignas(value_type) uint8_t _data[sizeof(value_type) * TreeType::MAX_ENTRIES];
   size_type _size = 0;
 
   static_node_t() = default;
-  static_node_t( static_node_t const& ) = delete;
-  static_node_t& operator=( static_node_t const& ) = delete;
-  static_node_t( static_node_t && ) = delete;
-  static_node_t& operator=( static_node_t && ) = delete;
+  static_node_t(static_node_t const&) = delete;
+  static_node_t& operator=(static_node_t const&) = delete;
+  static_node_t(static_node_t&&) = delete;
+  static_node_t& operator=(static_node_t&&) = delete;
 
   ~static_node_t()
   {
-    for( auto &c : *this )
+    for (auto& c : *this)
     {
       c.~value_type();
     }
   }
 
   // add child node with bounding box
-  void insert( value_type child )
+  void insert(value_type child)
   {
-    assert( size() < TreeType::MAX_ENTRIES );
+    assert(size() < TreeType::MAX_ENTRIES);
     child.second->_parent = this;
     child.second->_index_on_parent = size();
-    new (data()+size()) value_type( std::move(child) );
+    new (data() + size()) value_type(std::move(child));
     ++_size;
   }
-  void erase( node_base_type *node )
+  void erase(node_base_type* node)
   {
-    assert( node->_parent == this );
-    assert( size() > 0 );
-    if( node->_index_on_parent < size()-1 )
+    assert(node->_parent == this);
+    assert(size() > 0);
+    if (node->_index_on_parent < size() - 1)
     {
       back().second->_index_on_parent = node->_index_on_parent;
-      at(node->_index_on_parent) = std::move( back() );
+      at(node->_index_on_parent) = std::move(back());
     }
     node->_parent = nullptr;
     pop_back();
   }
-  void erase( iterator pos )
+  void erase(iterator pos)
   {
-    erase( pos->second );
+    erase(pos->second);
   }
 
   void clear()
   {
-    for( auto &c : *this )
+    for (auto& c : *this)
     {
       c.~value_type();
     }
@@ -214,19 +247,19 @@ struct static_node_t
   }
 
   // swap two different child node (i, j)
-  void swap( size_type i, size_type j )
+  void swap(size_type i, size_type j)
   {
-    assert( i != j );
-    assert( i < size() );
-    assert( j < size() );
+    assert(i != j);
+    assert(i < size());
+    assert(j < size());
 
-    std::swap( at(i), at(j) );
+    std::swap(at(i), at(j));
     at(i).second->_index_on_parent = i;
     at(j).second->_index_on_parent = j;
   }
   void pop_back()
   {
-    assert( size() > 0 );
+    assert(size() > 0);
     back().~value_type();
     --_size;
   }
@@ -261,125 +294,127 @@ struct static_node_t
     return data() + size();
   }
 
-  value_type& at( size_type i )
+  value_type& at(size_type i)
   {
-    assert( i >= 0 );
-    assert( i < size() );
+    assert(i >= 0);
+    assert(i < size());
     return data()[i];
   }
-  value_type const& at( size_type i ) const
+  value_type const& at(size_type i) const
   {
-    assert( i >= 0 );
-    assert( i < size() );
+    assert(i >= 0);
+    assert(i < size());
     return data()[i];
   }
-  value_type& operator[]( size_type i )
+  value_type& operator[](size_type i)
   {
     return at(i);
   }
-  value_type const& operator[]( size_type i ) const
+  value_type const& operator[](size_type i) const
   {
     return at(i);
   }
   value_type& front()
   {
-    assert( size() > 0 );
-    return at( 0 );
+    assert(size() > 0);
+    return at(0);
   }
   value_type const& front() const
   {
-    assert( size() > 0 );
-    return at( 0 );
+    assert(size() > 0);
+    return at(0);
   }
   value_type& back()
   {
-    assert( size() > 0 );
-    return at( size()-1 );
+    assert(size() > 0);
+    return at(size() - 1);
   }
   value_type const& back() const
   {
-    assert( size() > 0 );
-    return at( size()-1 );
+    assert(size() > 0);
+    return at(size() - 1);
   }
 
-  value_type *data()
+  value_type* data()
   {
-    return reinterpret_cast<value_type*>( _data );
+    return reinterpret_cast<value_type*>(_data);
   }
   value_type const* data() const
   {
-    return reinterpret_cast<value_type const*>( _data );
+    return reinterpret_cast<value_type const*>(_data);
   }
 
   // union bouinding box of children
   geometry_type calculate_bound() const
   {
-    assert( empty() == false );
+    assert(empty() == false);
     geometry_type merged = at(0).first;
-    for( size_type i=1; i<size(); ++i )
+    for (size_type i = 1; i < size(); ++i)
     {
-      merged = geometry_traits<geometry_type>::merge( merged, at(i).first );
+      merged = geometry_traits<geometry_type>::merge(merged, at(i).first);
     }
     return merged;
   }
 
   // delete its child recursively
-  void delete_recursive( int leaf_level, TreeType& tree )
+  void delete_recursive(int leaf_level, TreeType& tree)
   {
-    if( leaf_level == 1 )
+    if (leaf_level == 1)
     {
       // child is leaf node
-      for( auto &c : *this )
+      for (auto& c : *this)
       {
-        c.second->as_leaf()->delete_recursive( tree );
-        tree.destroy_node( c.second->as_leaf() );
+        c.second->as_leaf()->delete_recursive(tree);
+        tree.destroy_node(c.second->as_leaf());
       }
-    }else {
-      for( auto &c : *this )
+    }
+    else
+    {
+      for (auto& c : *this)
       {
-        c.second->as_node()->delete_recursive( leaf_level-1, tree );
-        tree.destroy_node( c.second->as_node() );
+        c.second->as_node()->delete_recursive(leaf_level - 1, tree);
+        tree.destroy_node(c.second->as_node());
       }
     }
   }
-  node_type *clone_recursive( int leaf_level, TreeType& tree ) const
+  node_type* clone_recursive(int leaf_level, TreeType& tree) const
   {
-    node_type *new_node = tree.template construct_node<node_type>();
-    if( leaf_level == 1 )
+    node_type* new_node = tree.template construct_node<node_type>();
+    if (leaf_level == 1)
     {
       // child is leaf node
-      for( auto &c : *this )
+      for (auto& c : *this)
       {
-        new_node->insert({
-          c.first, 
-          c.second->as_leaf()->clone_recursive( tree )
-        });
+        new_node->insert(
+            { c.first, c.second->as_leaf()->clone_recursive(tree) });
       }
-    }else {
-      for( auto &c : *this )
+    }
+    else
+    {
+      for (auto& c : *this)
       {
-        new_node->insert({
-          c.first,
-          c.second->as_node()->clone_recursive( leaf_level-1, tree )
-        });
+        new_node->insert({ c.first, c.second->as_node()->clone_recursive(
+                                        leaf_level - 1, tree) });
       }
     }
     return new_node;
   }
-  size_type size_recursive( int leaf_level ) const
+  size_type size_recursive(int leaf_level) const
   {
     size_type ret = 0;
-    if( leaf_level == 1 )
+    if (leaf_level == 1)
     {
       // child is leaf node
-      for( auto &c : *this )
+      for (auto& c : *this)
       {
         ret += c.second->as_leaf()->size_recursive();
       }
-    }else {
-      for( auto &c : *this )
+    }
+    else
+    {
+      for (auto& c : *this)
       {
-        ret += c.second->as_node()->size_recursive( leaf_level-1 );
+        ret += c.second->as_node()->size_recursive(leaf_level - 1);
       }
     }
     return ret;
@@ -403,9 +438,8 @@ struct static_node_t
   }
 };
 
-template < typename TreeType >
-struct static_leaf_node_t
-  : public static_node_base_t<TreeType>
+template <typename TreeType>
+struct static_leaf_node_t : public static_node_base_t<TreeType>
 {
   using parent_type = static_node_base_t<TreeType>;
   using node_base_type = parent_type;
@@ -415,49 +449,49 @@ struct static_leaf_node_t
   using geometry_type = typename TreeType::geometry_type;
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
-  using value_type = std::pair<key_type,mapped_type>;
+  using value_type = std::pair<key_type, mapped_type>;
 
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  alignas(value_type) uint8_t _data[ sizeof(value_type) * TreeType::MAX_ENTRIES ];
+  alignas(value_type) uint8_t _data[sizeof(value_type) * TreeType::MAX_ENTRIES];
   size_type _size = 0;
 
   static_leaf_node_t() = default;
-  static_leaf_node_t( static_leaf_node_t const& ) = delete;
-  static_leaf_node_t& operator=( static_leaf_node_t const& ) = delete;
-  static_leaf_node_t( static_leaf_node_t && ) = delete;
-  static_leaf_node_t& operator=( static_leaf_node_t && ) = delete;
+  static_leaf_node_t(static_leaf_node_t const&) = delete;
+  static_leaf_node_t& operator=(static_leaf_node_t const&) = delete;
+  static_leaf_node_t(static_leaf_node_t&&) = delete;
+  static_leaf_node_t& operator=(static_leaf_node_t&&) = delete;
 
   ~static_leaf_node_t()
   {
-    for( auto &c : *this )
+    for (auto& c : *this)
     {
       c.~value_type();
     }
   }
 
   // add child node with bounding box
-  void insert( value_type child )
+  void insert(value_type child)
   {
-    assert( size() < TreeType::MAX_ENTRIES );
-    new (data()+size()) value_type( std::move(child) );
+    assert(size() < TreeType::MAX_ENTRIES);
+    new (data() + size()) value_type(std::move(child));
     ++_size;
   }
-  void erase( value_type *pos )
+  void erase(value_type* pos)
   {
-    assert( size() > 0 );
-    assert( std::distance(data(),pos) < size() );
-    if( std::distance(data(),pos) < size()-1 )
+    assert(size() > 0);
+    assert(std::distance(data(), pos) < size());
+    if (std::distance(data(), pos) < size() - 1)
     {
-      *pos = std::move( back() );
+      *pos = std::move(back());
     }
     pop_back();
   }
 
   void clear()
   {
-    for( auto &c : *this )
+    for (auto& c : *this)
     {
       c.~value_type();
     }
@@ -465,17 +499,17 @@ struct static_leaf_node_t
   }
 
   // swap two different child node (i, j)
-  void swap( size_type i, size_type j )
+  void swap(size_type i, size_type j)
   {
-    assert( i != j );
-    assert( i < size() );
-    assert( j < size() );
+    assert(i != j);
+    assert(i < size());
+    assert(j < size());
 
-    std::swap( at(i), at(j) );
+    std::swap(at(i), at(j));
   }
   void pop_back()
   {
-    assert( size() > 0 );
+    assert(size() > 0);
     back().~value_type();
     --_size;
   }
@@ -510,77 +544,77 @@ struct static_leaf_node_t
     return data() + size();
   }
 
-  value_type& at( size_type i )
+  value_type& at(size_type i)
   {
-    assert( i >= 0 );
-    assert( i < size() );
+    assert(i >= 0);
+    assert(i < size());
     return data()[i];
   }
-  value_type const& at( size_type i ) const
+  value_type const& at(size_type i) const
   {
-    assert( i >= 0 );
-    assert( i < size() );
+    assert(i >= 0);
+    assert(i < size());
     return data()[i];
   }
-  value_type& operator[]( size_type i )
+  value_type& operator[](size_type i)
   {
     return at(i);
   }
-  value_type const& operator[]( size_type i ) const
+  value_type const& operator[](size_type i) const
   {
     return at(i);
   }
   value_type& front()
   {
-    assert( size() > 0 );
-    return at( 0 );
+    assert(size() > 0);
+    return at(0);
   }
   value_type const& front() const
   {
-    assert( size() > 0 );
-    return at( 0 );
+    assert(size() > 0);
+    return at(0);
   }
   value_type& back()
   {
-    assert( size() > 0 );
-    return at( size()-1 );
+    assert(size() > 0);
+    return at(size() - 1);
   }
   value_type const& back() const
   {
-    assert( size() > 0 );
-    return at( size()-1 );
+    assert(size() > 0);
+    return at(size() - 1);
   }
-  value_type *data()
+  value_type* data()
   {
-    return reinterpret_cast<value_type*>( _data );
+    return reinterpret_cast<value_type*>(_data);
   }
   value_type const* data() const
   {
-    return reinterpret_cast<value_type const*>( _data );
+    return reinterpret_cast<value_type const*>(_data);
   }
 
   // union bouinding box of children
   geometry_type calculate_bound() const
   {
-    assert( empty() == false );
+    assert(empty() == false);
     geometry_type merged = at(0).first;
-    for( int i=1; i<size(); ++i )
+    for (int i = 1; i < size(); ++i)
     {
-      merged = geometry_traits<geometry_type>::merge( merged, at(i).first );
+      merged = geometry_traits<geometry_type>::merge(merged, at(i).first);
     }
     return merged;
   }
 
   // delete its child recursively
-  void delete_recursive( TreeType& tree )
+  void delete_recursive(TreeType& tree)
   {
   }
-  leaf_type *clone_recursive( TreeType &tree ) const
+  leaf_type* clone_recursive(TreeType& tree) const
   {
-    leaf_type *new_node = tree.template construct_node<leaf_type>();
-    for( auto &c : *this )
+    leaf_type* new_node = tree.template construct_node<leaf_type>();
+    for (auto& c : *this)
     {
-      new_node->insert( c );
+      new_node->insert(c);
     }
     return new_node;
   }
@@ -607,4 +641,5 @@ struct static_leaf_node_t
   }
 };
 
-}} // namespace eh rtree
+}
+} // namespace eh rtree
