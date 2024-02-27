@@ -29,32 +29,32 @@ struct iterator_t
   pointer _pointer;
   LeafType* _leaf;
 
-  iterator_t()
+  EH_RTREE_DEVICE_HOST iterator_t()
       : _pointer(nullptr)
       , _leaf(nullptr)
   {
   }
-  iterator_t(pointer __pointer, LeafType* __leaf)
+  EH_RTREE_DEVICE_HOST iterator_t(pointer __pointer, LeafType* __leaf)
       : _pointer(__pointer)
       , _leaf(__leaf)
   {
   }
 
-  bool operator==(this_type const& rhs) const
+  EH_RTREE_DEVICE_HOST bool operator==(this_type const& rhs) const
   {
     return _pointer == rhs._pointer;
   }
-  bool operator!=(this_type const& rhs) const
+  EH_RTREE_DEVICE_HOST bool operator!=(this_type const& rhs) const
   {
     return _pointer != rhs._pointer;
   }
 
-  LeafType* node() const
+  EH_RTREE_DEVICE_HOST LeafType* node() const
   {
     return _leaf;
   }
 
-  this_type& operator++()
+  EH_RTREE_DEVICE_HOST this_type& operator++()
   {
     if (_pointer == &_leaf->at(_leaf->size() - 1))
     {
@@ -67,13 +67,13 @@ struct iterator_t
     }
     return *this;
   }
-  this_type operator++(int)
+  EH_RTREE_DEVICE_HOST this_type operator++(int)
   {
     this_type ret = *this;
     operator++();
     return ret;
   }
-  this_type& operator--()
+  EH_RTREE_DEVICE_HOST this_type& operator--()
   {
     if (_pointer == &_leaf->at(0))
     {
@@ -86,18 +86,18 @@ struct iterator_t
     }
     return *this;
   }
-  this_type operator--(int)
+  EH_RTREE_DEVICE_HOST this_type operator--(int)
   {
     this_type ret = *this;
     operator--();
     return ret;
   }
 
-  reference operator*() const
+  EH_RTREE_DEVICE_HOST reference operator*() const
   {
     return *_pointer;
   }
-  pointer operator->() const
+  EH_RTREE_DEVICE_HOST pointer operator->() const
   {
     return _pointer;
   }
@@ -119,56 +119,56 @@ struct node_iterator_t
 
   NodeType* _node;
 
-  node_iterator_t()
+  EH_RTREE_DEVICE_HOST node_iterator_t()
       : _node(nullptr)
   {
   }
-  node_iterator_t(NodeType* node)
+  EH_RTREE_DEVICE_HOST node_iterator_t(NodeType* node)
       : _node(node)
   {
   }
-  bool operator==(this_type const& rhs) const
+  EH_RTREE_DEVICE_HOST bool operator==(this_type const& rhs) const
   {
     return (_node == rhs._node);
   }
-  bool operator!=(this_type const& rhs) const
+  EH_RTREE_DEVICE_HOST bool operator!=(this_type const& rhs) const
   {
     return (_node != rhs._node);
   }
 
-  NodeType* node() const
+  EH_RTREE_DEVICE_HOST NodeType* node() const
   {
     return _node;
   }
 
-  this_type& operator++()
+  EH_RTREE_DEVICE_HOST this_type& operator++()
   {
     _node = _node->next();
     return *this;
   }
-  this_type operator++(int)
+  EH_RTREE_DEVICE_HOST this_type operator++(int)
   {
     this_type ret = *this;
     _node = _node->next();
     return ret;
   }
-  this_type& operator--()
+  EH_RTREE_DEVICE_HOST this_type& operator--()
   {
     _node = _node->prev();
     return *this;
   }
-  this_type operator--(int)
+  EH_RTREE_DEVICE_HOST this_type operator--(int)
   {
     this_type ret = *this;
     _node = _node->prev();
     return ret;
   }
 
-  reference operator*()
+  EH_RTREE_DEVICE_HOST reference operator*()
   {
     return _node;
   }
-  pointer operator->() const
+  EH_RTREE_DEVICE_HOST pointer operator->() const
   {
     return _node;
   }

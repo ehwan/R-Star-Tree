@@ -35,37 +35,37 @@ struct static_node_base_t
   size_type _index_on_parent;
 
   // parent node's pointer
-  node_type* parent() const
+  EH_RTREE_DEVICE_HOST node_type* parent() const
   {
     return _parent;
   }
-  bool is_root() const
+  EH_RTREE_DEVICE_HOST bool is_root() const
   {
     return _parent == nullptr;
   }
 
-  auto& entry()
+  EH_RTREE_DEVICE_HOST auto& entry()
   {
     return parent()->at(_index_on_parent);
   }
-  auto const& entry() const
+  EH_RTREE_DEVICE_HOST auto const& entry() const
   {
     return parent()->at(_index_on_parent);
   }
 
-  inline node_type* as_node()
+  EH_RTREE_DEVICE_HOST inline node_type* as_node()
   {
     return reinterpret_cast<node_type*>(this);
   }
-  inline node_type const* as_node() const
+  EH_RTREE_DEVICE_HOST inline node_type const* as_node() const
   {
     return reinterpret_cast<node_type const*>(this);
   }
-  inline leaf_type* as_leaf()
+  EH_RTREE_DEVICE_HOST inline leaf_type* as_leaf()
   {
     return reinterpret_cast<leaf_type*>(this);
   }
-  inline leaf_type const* as_leaf() const
+  EH_RTREE_DEVICE_HOST inline leaf_type const* as_leaf() const
   {
     return reinterpret_cast<leaf_type const*>(this);
   }
@@ -73,7 +73,7 @@ struct static_node_base_t
   // get next node on same level
   // this would return node across different parent
   // if it is last node, return nullptr
-  node_base_type* next()
+  EH_RTREE_DEVICE_HOST node_base_type* next()
   {
     // if n is root
     if (_parent == nullptr)
@@ -98,7 +98,7 @@ struct static_node_base_t
       return parent()->at(_index_on_parent + 1).second;
     }
   }
-  node_base_type const* next() const
+  EH_RTREE_DEVICE_HOST node_base_type const* next() const
   {
     // if n is root
     if (this->_parent == nullptr)
@@ -126,7 +126,7 @@ struct static_node_base_t
   // get prev node on same level
   // this would return node across different parent
   // if it is first node, return nullptr
-  node_base_type* prev()
+  EH_RTREE_DEVICE_HOST node_base_type* prev()
   {
     // if n is root
     if (this->_parent == nullptr)
@@ -151,7 +151,7 @@ struct static_node_base_t
       return parent()->at(_index_on_parent - 1).second;
     }
   }
-  node_base_type const* prev() const
+  EH_RTREE_DEVICE_HOST node_base_type const* prev() const
   {
     // if n is root
     if (this->_parent == nullptr)
@@ -265,87 +265,87 @@ struct static_node_t : public static_node_base_t<TreeType>
   }
 
   // child count
-  size_type size() const
+  EH_RTREE_DEVICE_HOST size_type size() const
   {
     return _size;
   }
-  bool empty() const
+  EH_RTREE_DEVICE_HOST bool empty() const
   {
     return _size == 0;
   }
   // child iterator
-  iterator begin()
+  EH_RTREE_DEVICE_HOST iterator begin()
   {
     return data();
   }
   // child iterator
-  const_iterator begin() const
+  EH_RTREE_DEVICE_HOST const_iterator begin() const
   {
     return data();
   }
   // child iterator
-  iterator end()
+  EH_RTREE_DEVICE_HOST iterator end()
   {
     return data() + size();
   }
   // child iterator
-  const_iterator end() const
+  EH_RTREE_DEVICE_HOST const_iterator end() const
   {
     return data() + size();
   }
 
-  value_type& at(size_type i)
+  EH_RTREE_DEVICE_HOST value_type& at(size_type i)
   {
     assert(i >= 0);
     assert(i < size());
     return data()[i];
   }
-  value_type const& at(size_type i) const
+  EH_RTREE_DEVICE_HOST value_type const& at(size_type i) const
   {
     assert(i >= 0);
     assert(i < size());
     return data()[i];
   }
-  value_type& operator[](size_type i)
+  EH_RTREE_DEVICE_HOST value_type& operator[](size_type i)
   {
     return at(i);
   }
-  value_type const& operator[](size_type i) const
+  EH_RTREE_DEVICE_HOST value_type const& operator[](size_type i) const
   {
     return at(i);
   }
-  value_type& front()
+  EH_RTREE_DEVICE_HOST value_type& front()
   {
     assert(size() > 0);
     return at(0);
   }
-  value_type const& front() const
+  EH_RTREE_DEVICE_HOST value_type const& front() const
   {
     assert(size() > 0);
     return at(0);
   }
-  value_type& back()
+  EH_RTREE_DEVICE_HOST value_type& back()
   {
     assert(size() > 0);
     return at(size() - 1);
   }
-  value_type const& back() const
+  EH_RTREE_DEVICE_HOST value_type const& back() const
   {
     assert(size() > 0);
     return at(size() - 1);
   }
 
-  value_type* data()
+  EH_RTREE_DEVICE_HOST value_type* data()
   {
     return reinterpret_cast<value_type*>(_data);
   }
-  value_type const* data() const
+  EH_RTREE_DEVICE_HOST value_type const* data() const
   {
     return reinterpret_cast<value_type const*>(_data);
   }
 
   // union bouinding box of children
-  geometry_type calculate_bound() const
+  EH_RTREE_DEVICE_HOST geometry_type calculate_bound() const
   {
     assert(empty() == false);
     geometry_type merged = at(0).first;
@@ -399,7 +399,7 @@ struct static_node_t : public static_node_base_t<TreeType>
     }
     return new_node;
   }
-  size_type size_recursive(int leaf_level) const
+  EH_RTREE_DEVICE_HOST size_type size_recursive(int leaf_level) const
   {
     size_type ret = 0;
     if (leaf_level == 1)
@@ -420,19 +420,19 @@ struct static_node_t : public static_node_base_t<TreeType>
     return ret;
   }
 
-  node_type* next()
+  EH_RTREE_DEVICE_HOST node_type* next()
   {
     return parent_type::next()->as_node();
   }
-  node_type const* next() const
+  EH_RTREE_DEVICE_HOST node_type const* next() const
   {
     return parent_type::next()->as_node();
   }
-  node_type* prev()
+  EH_RTREE_DEVICE_HOST node_type* prev()
   {
     return parent_type::prev()->as_node();
   }
-  node_type const* prev() const
+  EH_RTREE_DEVICE_HOST node_type const* prev() const
   {
     return parent_type::prev()->as_node();
   }
@@ -515,86 +515,86 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   }
 
   // child count
-  size_type size() const
+  EH_RTREE_DEVICE_HOST size_type size() const
   {
     return _size;
   }
-  bool empty() const
+  EH_RTREE_DEVICE_HOST bool empty() const
   {
     return _size == 0;
   }
   // child iterator
-  iterator begin()
+  EH_RTREE_DEVICE_HOST iterator begin()
   {
     return data();
   }
   // child iterator
-  const_iterator begin() const
+  EH_RTREE_DEVICE_HOST const_iterator begin() const
   {
     return data();
   }
   // child iterator
-  iterator end()
+  EH_RTREE_DEVICE_HOST iterator end()
   {
     return data() + size();
   }
   // child iterator
-  const_iterator end() const
+  EH_RTREE_DEVICE_HOST const_iterator end() const
   {
     return data() + size();
   }
 
-  value_type& at(size_type i)
+  EH_RTREE_DEVICE_HOST value_type& at(size_type i)
   {
     assert(i >= 0);
     assert(i < size());
     return data()[i];
   }
-  value_type const& at(size_type i) const
+  EH_RTREE_DEVICE_HOST value_type const& at(size_type i) const
   {
     assert(i >= 0);
     assert(i < size());
     return data()[i];
   }
-  value_type& operator[](size_type i)
+  EH_RTREE_DEVICE_HOST value_type& operator[](size_type i)
   {
     return at(i);
   }
-  value_type const& operator[](size_type i) const
+  EH_RTREE_DEVICE_HOST value_type const& operator[](size_type i) const
   {
     return at(i);
   }
-  value_type& front()
+  EH_RTREE_DEVICE_HOST value_type& front()
   {
     assert(size() > 0);
     return at(0);
   }
-  value_type const& front() const
+  EH_RTREE_DEVICE_HOST value_type const& front() const
   {
     assert(size() > 0);
     return at(0);
   }
-  value_type& back()
+  EH_RTREE_DEVICE_HOST value_type& back()
   {
     assert(size() > 0);
     return at(size() - 1);
   }
-  value_type const& back() const
+  EH_RTREE_DEVICE_HOST value_type const& back() const
   {
     assert(size() > 0);
     return at(size() - 1);
   }
-  value_type* data()
+  EH_RTREE_DEVICE_HOST value_type* data()
   {
     return reinterpret_cast<value_type*>(_data);
   }
-  value_type const* data() const
+  EH_RTREE_DEVICE_HOST value_type const* data() const
   {
     return reinterpret_cast<value_type const*>(_data);
   }
 
   // union bouinding box of children
-  geometry_type calculate_bound() const
+  EH_RTREE_DEVICE_HOST geometry_type calculate_bound() const
   {
     assert(empty() == false);
     geometry_type merged = at(0).first;
@@ -618,24 +618,24 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
     }
     return new_node;
   }
-  size_type size_recursive() const
+  EH_RTREE_DEVICE_HOST size_type size_recursive() const
   {
     return size();
   }
 
-  leaf_type* next()
+  EH_RTREE_DEVICE_HOST leaf_type* next()
   {
     return parent_type::next()->as_leaf();
   }
-  leaf_type const* next() const
+  EH_RTREE_DEVICE_HOST leaf_type const* next() const
   {
     return parent_type::next()->as_leaf();
   }
-  leaf_type* prev()
+  EH_RTREE_DEVICE_HOST leaf_type* prev()
   {
     return parent_type::prev()->as_leaf();
   }
-  leaf_type const* prev() const
+  EH_RTREE_DEVICE_HOST leaf_type const* prev() const
   {
     return parent_type::prev()->as_leaf();
   }

@@ -97,7 +97,7 @@ protected:
       }
     }
   }
-  void set_null()
+  EH_RTREE_DEVICE_HOST void set_null()
   {
     _root = nullptr;
     _leaf_level = 0;
@@ -340,7 +340,7 @@ public:
     }
   }
 
-  size_type size() const
+  EH_RTREE_DEVICE_HOST size_type size() const
   {
     if (_leaf_level == 0)
     {
@@ -417,7 +417,7 @@ public:
     delete_if();
   }
 
-  iterator begin()
+  EH_RTREE_DEVICE_HOST iterator begin()
   {
     node_type* n = _root->as_node();
     for (int level = 0; level < _leaf_level; ++level)
@@ -430,7 +430,7 @@ public:
     }
     return { &n->as_leaf()->at(0), n->as_leaf() };
   }
-  const_iterator cbegin() const
+  EH_RTREE_DEVICE_HOST const_iterator cbegin() const
   {
     node_type const* n = _root->as_node();
     for (int level = 0; level < _leaf_level; ++level)
@@ -443,25 +443,25 @@ public:
     }
     return { &n->as_leaf()->at(0), n->as_leaf() };
   }
-  const_iterator begin() const
+  EH_RTREE_DEVICE_HOST const_iterator begin() const
   {
     return cbegin();
   }
 
-  iterator end()
+  EH_RTREE_DEVICE_HOST iterator end()
   {
     return {};
   }
-  const_iterator cend() const
+  EH_RTREE_DEVICE_HOST const_iterator cend() const
   {
     return {};
   }
-  const_iterator end() const
+  EH_RTREE_DEVICE_HOST const_iterator end() const
   {
     return {};
   }
 
-  node_iterator begin(int level)
+  EH_RTREE_DEVICE_HOST node_iterator begin(int level)
   {
     if (level > _leaf_level)
     {
@@ -474,7 +474,7 @@ public:
     }
     return { n };
   }
-  const_node_iterator begin(int level) const
+  EH_RTREE_DEVICE_HOST const_node_iterator begin(int level) const
   {
     if (level > _leaf_level)
     {
@@ -487,25 +487,25 @@ public:
     }
     return { n };
   }
-  const_node_iterator cbegin(int level) const
+  EH_RTREE_DEVICE_HOST const_node_iterator cbegin(int level) const
   {
     return begin(level);
   }
 
-  node_iterator end(int level)
+  EH_RTREE_DEVICE_HOST node_iterator end(int level)
   {
     return {};
   }
-  const_node_iterator end(int level) const
+  EH_RTREE_DEVICE_HOST const_node_iterator end(int level) const
   {
     return {};
   }
-  const_node_iterator cend(int level) const
+  EH_RTREE_DEVICE_HOST const_node_iterator cend(int level) const
   {
     return {};
   }
 
-  leaf_iterator leaf_begin()
+  EH_RTREE_DEVICE_HOST leaf_iterator leaf_begin()
   {
     node_type* n = _root->as_node();
     for (int l = 0; l < _leaf_level; ++l)
@@ -514,7 +514,7 @@ public:
     }
     return { n->as_leaf() };
   }
-  const_leaf_iterator leaf_begin() const
+  EH_RTREE_DEVICE_HOST const_leaf_iterator leaf_begin() const
   {
     node_type const* n = _root->as_node();
     for (int l = 0; l < _leaf_level; ++l)
@@ -523,33 +523,33 @@ public:
     }
     return { n->as_leaf() };
   }
-  const_leaf_iterator leaf_cbegin() const
+  EH_RTREE_DEVICE_HOST const_leaf_iterator leaf_cbegin() const
   {
     return leaf_begin();
   }
-  leaf_iterator leaf_end()
+  EH_RTREE_DEVICE_HOST leaf_iterator leaf_end()
   {
     return {};
   }
-  const_leaf_iterator leaf_end() const
+  EH_RTREE_DEVICE_HOST const_leaf_iterator leaf_end() const
   {
     return {};
   }
-  const_leaf_iterator leaf_cend() const
+  EH_RTREE_DEVICE_HOST const_leaf_iterator leaf_cend() const
   {
     return {};
   }
 
-  node_type* root()
+  EH_RTREE_DEVICE_HOST node_type* root()
   {
     return _root->as_node();
   }
-  node_type const* root() const
+  EH_RTREE_DEVICE_HOST node_type const* root() const
   {
     return _root->as_node();
   }
 
-  int leaf_level() const
+  EH_RTREE_DEVICE_HOST int leaf_level() const
   {
     return _leaf_level;
   }
@@ -590,10 +590,11 @@ public:
 
 protected:
   template <typename _NodeType, typename _GeometryType, typename Functor>
-  static bool search_overlap_wrapper(_NodeType* node,
-                                     int leaf,
-                                     _GeometryType const& search_range,
-                                     Functor functor)
+  EH_RTREE_DEVICE_HOST static bool
+  search_overlap_wrapper(_NodeType* node,
+                         int leaf,
+                         _GeometryType const& search_range,
+                         Functor functor)
   {
     if (leaf == 0)
     {
@@ -621,10 +622,11 @@ protected:
   }
 
   template <typename _NodeType, typename _GeometryType, typename Functor>
-  static bool search_inside_wrapper(_NodeType* node,
-                                    int leaf,
-                                    _GeometryType const& search_range,
-                                    Functor functor)
+  EH_RTREE_DEVICE_HOST static bool
+  search_inside_wrapper(_NodeType* node,
+                        int leaf,
+                        _GeometryType const& search_range,
+                        Functor functor)
   {
     if (leaf == 0)
     {
@@ -651,9 +653,10 @@ protected:
     return false;
   }
   template <typename _LeafType, typename _GeometryType, typename Functor>
-  static bool search_overlap_leaf_wrapper(_LeafType* node,
-                                          _GeometryType const& search_range,
-                                          Functor functor)
+  EH_RTREE_DEVICE_HOST static bool
+  search_overlap_leaf_wrapper(_LeafType* node,
+                              _GeometryType const& search_range,
+                              Functor functor)
   {
     for (auto& c : *node)
     {
@@ -670,9 +673,10 @@ protected:
   }
 
   template <typename _LeafType, typename _GeometryType, typename Functor>
-  static bool search_inside_leaf_wrapper(_LeafType* node,
-                                         _GeometryType const& search_range,
-                                         Functor functor)
+  EH_RTREE_DEVICE_HOST static bool
+  search_inside_leaf_wrapper(_LeafType* node,
+                             _GeometryType const& search_range,
+                             Functor functor)
   {
     for (auto& c : *node)
     {
@@ -690,25 +694,29 @@ protected:
 
 public:
   template <typename _GeometryType, typename Functor>
-  void search_inside(_GeometryType const& search_range, Functor functor)
+  EH_RTREE_DEVICE_HOST void search_inside(_GeometryType const& search_range,
+                                          Functor functor)
   {
     search_inside_wrapper(root()->as_node(), _leaf_level, search_range,
                           functor);
   }
   template <typename _GeometryType, typename Functor>
-  void search_overlap(_GeometryType const& search_range, Functor functor)
+  EH_RTREE_DEVICE_HOST void search_overlap(_GeometryType const& search_range,
+                                           Functor functor)
   {
     search_overlap_wrapper(root()->as_node(), _leaf_level, search_range,
                            functor);
   }
   template <typename _GeometryType, typename Functor>
-  void search_inside(_GeometryType const& search_range, Functor functor) const
+  EH_RTREE_DEVICE_HOST void search_inside(_GeometryType const& search_range,
+                                          Functor functor) const
   {
     search_inside_wrapper(root()->as_node(), _leaf_level, search_range,
                           functor);
   }
   template <typename _GeometryType, typename Functor>
-  void search_overlap(_GeometryType const& search_range, Functor functor) const
+  EH_RTREE_DEVICE_HOST void search_overlap(_GeometryType const& search_range,
+                                           Functor functor) const
   {
     search_overlap_wrapper(root()->as_node(), _leaf_level, search_range,
                            functor);
