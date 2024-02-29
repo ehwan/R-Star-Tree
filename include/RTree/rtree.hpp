@@ -87,12 +87,13 @@ protected:
       if (_leaf_level == 0)
       {
         // root is leaf node
-        _root->as_leaf()->delete_recursive(*this);
+        _root->as_leaf()->delete_recursive(leaf_allocator());
         destroy_node(_root->as_leaf());
       }
       else
       {
-        _root->as_node()->delete_recursive(_leaf_level, *this);
+        _root->as_node()->delete_recursive(_leaf_level, node_allocator(),
+                                           leaf_allocator());
         destroy_node(_root->as_node());
       }
     }
@@ -370,12 +371,13 @@ public:
   {
     if (rhs._leaf_level == 0)
     {
-      _root = rhs._root->as_leaf()->clone_recursive(*this);
+      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
       _leaf_level = 0;
     }
     else
     {
-      _root = rhs._root->as_node()->clone_recursive(rhs._leaf_level, *this);
+      _root = rhs._root->as_node()->clone_recursive(
+          rhs._leaf_level, node_allocator(), leaf_allocator());
       _leaf_level = rhs._leaf_level;
     }
   }
@@ -386,12 +388,13 @@ public:
     delete_if();
     if (rhs._leaf_level == 0)
     {
-      _root = rhs._root->as_leaf()->clone_recursive(*this);
+      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
       _leaf_level = 0;
     }
     else
     {
-      _root = rhs._root->as_node()->clone_recursive(rhs._leaf_level, *this);
+      _root = rhs._root->as_node()->clone_recursive(
+          rhs._leaf_level, node_allocator(), leaf_allocator());
       _leaf_level = rhs._leaf_level;
     }
     return *this;
