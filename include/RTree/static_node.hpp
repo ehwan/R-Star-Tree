@@ -388,23 +388,24 @@ struct static_node_t : public static_node_base_t<TreeType>
                              NodeAllocator&& node_allocator,
                              LeafAllocator&& leaf_allocator) const
   {
-    node_type* new_node = new (node_allocator.allocate(1)) node_type();
+    node_type* new_node = node_allocator.allocate(1);
+    new (new_node) node_type();
     if (leaf_level == 1)
     {
       // child is leaf node
       for (auto& c : *this)
       {
-        new_node->insert(
-            { c.first, c.second->as_leaf()->clone_recursive(leaf_allocator) });
+        new_node->insert(value_type {
+            c.first, c.second->as_leaf()->clone_recursive(leaf_allocator) });
       }
     }
     else
     {
       for (auto& c : *this)
       {
-        new_node->insert(
-            { c.first, c.second->as_node()->clone_recursive(
-                           leaf_level - 1, node_allocator, leaf_allocator) });
+        new_node->insert(value_type {
+            c.first, c.second->as_node()->clone_recursive(
+                         leaf_level - 1, node_allocator, leaf_allocator) });
       }
     }
     return new_node;
@@ -623,7 +624,8 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   template <typename LeafAllocator>
   leaf_type* clone_recursive(LeafAllocator&& leaf_allocator) const
   {
-    leaf_type* new_node = new (leaf_allocator.allocate(1)) leaf_type();
+    leaf_type* new_node = leaf_allocator.allocate(1);
+    new (new_node) leaf_type();
     for (auto& c : *this)
     {
       new_node->insert(c);

@@ -34,6 +34,15 @@ template <typename GeometryType, // bounding box representation
           >
 class RTree
 {
+  template <typename _GeometryType,
+            typename _KeyType,
+            typename _MappedType,
+            unsigned int _MinEntry,
+            unsigned int _MaxEntry,
+            template <typename __T>
+            class _Allocator>
+  friend class RTree;
+
 public:
   // using stack memory for MaxEntries child nodes. instead of std::vector
   using node_base_type = static_node_base_t<RTree>;
@@ -108,7 +117,8 @@ protected:
   {
     if (_root == nullptr)
     {
-      _root = construct_node<leaf_type>();
+      _root = leaf_allocator().allocate(1);
+      new (_root) leaf_type;
       _leaf_level = 0;
     }
   }
@@ -197,7 +207,8 @@ protected:
     {
       if (parent == _root)
       {
-        node_type* new_root = construct_node<node_type>();
+        node_type* new_root = node_allocator().allocate(1);
+        new (new_root) node_type;
         new_root->insert({ parent->calculate_bound(), parent });
         new_root->insert({ pair->calculate_bound(), pair });
         _root = new_root;
@@ -395,6 +406,50 @@ public:
     }
     return *this;
   }
+
+  // copy construct from different allocator
+  template <template <typename> class _Allocator>
+  RTree(RTree<GeometryType,
+              KeyType,
+              MappedType,
+              MinEntry,
+              MaxEntry,
+              _Allocator> const& rhs)
+  {
+    if (rhs._leaf_level == 0)
+    {
+      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
+      _leaf_level = 0;
+    }
+    else
+    {
+      _root = rhs._root->as_node()->clone_recursive(
+          rhs._leaf_level, node_allocator(), leaf_allocator());
+      _leaf_level = rhs._leaf_level;
+    }
+  }
+  template <template <typename> class _Allocator>
+  RTree& operator=(RTree<GeometryType,
+                         KeyType,
+                         MappedType,
+                         MinEntry,
+                         MaxEntry,
+                         _Allocator> const& rhs)
+  {
+    delete_if();
+    if (rhs._leaf_level == 0)
+    {
+      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
+      _leaf_level = 0;
+    }
+    else
+    {
+      _root = rhs._root->as_node()->clone_recursive(
+          rhs._leaf_level, node_allocator(), leaf_allocator());
+      _leaf_level = rhs._leaf_level;
+    }
+    return *this;
+  }
   RTree(RTree&& rhs)
   {
     _root = rhs._root;
@@ -567,14 +622,18 @@ public:
                           NodeType*>::type
   construct_node()
   {
-    return new (node_allocator().allocate(1)) NodeType;
+    node_type* ret = node_allocator().allocate(1);
+    new (ret) node_type;
+    return ret;
   }
   template <typename NodeType>
   typename std::enable_if<std::is_same<NodeType, leaf_type>::value,
                           NodeType*>::type
   construct_node()
   {
-    return new (leaf_allocator().allocate(1)) NodeType;
+    leaf_type* ret = leaf_allocator().allocate(1);
+    new (ret) leaf_type;
+    return ret;
   }
   void destroy_node(node_type* node)
   {
