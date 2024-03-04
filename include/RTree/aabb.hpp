@@ -70,13 +70,24 @@ struct geometry_traits<aabb_t<ArithmeticType>>
     return true;
   }
 
+  EH_RTREE_DEVICE_HOST static ArithmeticType _min(ArithmeticType const& lhs,
+                                                  ArithmeticType const& rhs)
+  {
+    return lhs < rhs ? lhs : rhs;
+  }
+  EH_RTREE_DEVICE_HOST static ArithmeticType _max(ArithmeticType const& lhs,
+                                                  ArithmeticType const& rhs)
+  {
+    return lhs > rhs ? lhs : rhs;
+  }
+
   EH_RTREE_DEVICE_HOST static AABB merge(AABB const& aabb, ArithmeticType p)
   {
-    return { std::min(aabb.min_, p), std::max(aabb.max_, p) };
+    return { _min(aabb.min_, p), _max(aabb.max_, p) };
   }
   EH_RTREE_DEVICE_HOST static AABB merge(AABB const& aabb, AABB const& aabb2)
   {
-    return { std::min(aabb.min_, aabb2.min_), std::max(aabb.max_, aabb2.max_) };
+    return { _min(aabb.min_, aabb2.min_), _max(aabb.max_, aabb2.max_) };
   }
 
   EH_RTREE_DEVICE_HOST static area_type area(AABB const& aabb)
@@ -88,8 +99,8 @@ struct geometry_traits<aabb_t<ArithmeticType>>
   EH_RTREE_DEVICE_HOST static AABB intersection(AABB const& aabb,
                                                 AABB const& aabb2)
   {
-    const auto ret_min = std::max(aabb.min_, aabb2.min_);
-    return { ret_min, std::max(ret_min, std::min(aabb.max_, aabb2.max_)) };
+    const auto ret_min = _max(aabb.min_, aabb2.min_);
+    return { ret_min, _max(ret_min, _min(aabb.max_, aabb2.max_)) };
   }
 };
 

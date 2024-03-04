@@ -189,7 +189,7 @@ struct static_node_t : public static_node_base_t<TreeType>
   using geometry_type = typename TreeType::geometry_type;
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
-  using value_type = std::pair<geometry_type, node_base_type*>;
+  using value_type = pair<geometry_type, node_base_type*>;
 
   using iterator = value_type*;
   using const_iterator = value_type const*;
@@ -459,7 +459,7 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   using geometry_type = typename TreeType::geometry_type;
   using key_type = typename TreeType::key_type;
   using mapped_type = typename TreeType::mapped_type;
-  using value_type = std::pair<key_type, mapped_type>;
+  using value_type = pair<key_type, mapped_type>;
 
   using iterator = value_type*;
   using const_iterator = value_type const*;

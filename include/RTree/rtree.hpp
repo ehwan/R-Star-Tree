@@ -46,7 +46,7 @@ public:
   using traits = geometry_traits<GeometryType>;
   using key_type = KeyType;
   using mapped_type = MappedType;
-  using value_type = std::pair<key_type, mapped_type>;
+  using value_type = pair<key_type, mapped_type>;
 
   template <typename __T>
   using allocator_type = Allocator<__T>;
@@ -270,7 +270,7 @@ public:
     }
 
     // relative level from leaf, node's children will be reinserted later.
-    std::vector<std::pair<int, node_base_type*>> reinsert_nodes;
+    std::vector<pair<int, node_base_type*>> reinsert_nodes;
 
     node_type* node = leaf->parent();
     if (leaf->size() < MIN_ENTRIES)
@@ -365,8 +365,6 @@ public:
     init_root();
   }
 
-  // @TODO
-  // mapped_type copy-assignable
   RTree(RTree const& rhs)
   {
     if (rhs._leaf_level == 0)
@@ -381,8 +379,6 @@ public:
       _leaf_level = rhs._leaf_level;
     }
   }
-  // @TODO
-  // mapped_type copy-assignable
   RTree& operator=(RTree const& rhs)
   {
     delete_if();
