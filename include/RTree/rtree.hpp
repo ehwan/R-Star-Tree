@@ -117,8 +117,8 @@ protected:
   {
     if (_root == nullptr)
     {
-      _root = leaf_allocator().allocate(1);
-      new (_root) leaf_type;
+      _root = leaf_allocator().allocate(1)->as_base();
+      new (_root->as_leaf()) leaf_type;
       _leaf_level = 0;
     }
   }
@@ -205,18 +205,18 @@ protected:
     broadcast_new_bound(parent);
     if (pair)
     {
-      if (parent == _root)
+      if (parent->as_base() == _root)
       {
         node_type* new_root = node_allocator().allocate(1);
         new (new_root) node_type;
-        new_root->insert({ parent->calculate_bound(), parent });
-        new_root->insert({ pair->calculate_bound(), pair });
-        _root = new_root;
+        new_root->insert({ parent->calculate_bound(), parent->as_base() });
+        new_root->insert({ pair->calculate_bound(), pair->as_base() });
+        _root = new_root->as_base();
         ++_leaf_level;
       }
       else
       {
-        insert_node(pair->calculate_bound(), pair, parent->parent());
+        insert_node(pair->calculate_bound(), pair->as_base(), parent->parent());
       }
     }
   }
@@ -258,14 +258,14 @@ public:
       if (chosen->parent() == nullptr)
       {
         node_type* new_root = construct_node<node_type>();
-        new_root->insert({ chosen->calculate_bound(), chosen });
-        new_root->insert({ pair->calculate_bound(), pair });
-        _root = new_root;
+        new_root->insert({ chosen->calculate_bound(), chosen->as_base() });
+        new_root->insert({ pair->calculate_bound(), pair->as_base() });
+        _root = new_root->as_base();
         ++_leaf_level;
       }
       else
       {
-        insert_node(pair->calculate_bound(), pair, chosen->parent());
+        insert_node(pair->calculate_bound(), pair->as_base(), chosen->parent());
       }
     }
   }
@@ -275,7 +275,7 @@ public:
     leaf_type* leaf = pos._leaf;
     leaf->erase(pos._pointer);
 
-    if (leaf == _root)
+    if (leaf == _root->as_leaf())
     {
       return;
     }
@@ -287,10 +287,10 @@ public:
     if (leaf->size() < MIN_ENTRIES)
     {
       // delete node from node's parent
-      node->erase(leaf);
+      node->erase(leaf->as_base());
 
       // insert node to set
-      reinsert_nodes.emplace_back(0, leaf);
+      reinsert_nodes.emplace_back(0, leaf->as_base());
     }
     else
     {
@@ -302,9 +302,9 @@ public:
       if (node->size() < MIN_ENTRIES)
       {
         // delete node from node's parent
-        parent->erase(node);
+        parent->erase(node->as_base());
         // insert node to set
-        reinsert_nodes.emplace_back(_leaf_level - level, node);
+        reinsert_nodes.emplace_back(_leaf_level - level, node->as_base());
       }
       else
       {
@@ -380,13 +380,16 @@ public:
   {
     if (rhs._leaf_level == 0)
     {
-      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
+      _root
+          = rhs._root->as_leaf()->clone_recursive(leaf_allocator())->as_base();
       _leaf_level = 0;
     }
     else
     {
-      _root = rhs._root->as_node()->clone_recursive(
-          rhs._leaf_level, node_allocator(), leaf_allocator());
+      _root = rhs._root->as_node()
+                  ->clone_recursive(rhs._leaf_level, node_allocator(),
+                                    leaf_allocator())
+                  ->as_base();
       _leaf_level = rhs._leaf_level;
     }
   }
@@ -395,13 +398,16 @@ public:
     delete_if();
     if (rhs._leaf_level == 0)
     {
-      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
+      _root
+          = rhs._root->as_leaf()->clone_recursive(leaf_allocator())->as_base();
       _leaf_level = 0;
     }
     else
     {
-      _root = rhs._root->as_node()->clone_recursive(
-          rhs._leaf_level, node_allocator(), leaf_allocator());
+      _root = rhs._root->as_node()
+                  ->clone_recursive(rhs._leaf_level, node_allocator(),
+                                    leaf_allocator())
+                  ->as_base();
       _leaf_level = rhs._leaf_level;
     }
     return *this;
@@ -418,13 +424,16 @@ public:
   {
     if (rhs._leaf_level == 0)
     {
-      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
+      _root
+          = rhs._root->as_leaf()->clone_recursive(leaf_allocator())->as_base();
       _leaf_level = 0;
     }
     else
     {
-      _root = rhs._root->as_node()->clone_recursive(
-          rhs._leaf_level, node_allocator(), leaf_allocator());
+      _root = rhs._root->as_node()
+                  ->clone_recursive(rhs._leaf_level, node_allocator(),
+                                    leaf_allocator())
+                  ->as_base();
       _leaf_level = rhs._leaf_level;
     }
   }
@@ -439,13 +448,16 @@ public:
     delete_if();
     if (rhs._leaf_level == 0)
     {
-      _root = rhs._root->as_leaf()->clone_recursive(leaf_allocator());
+      _root
+          = rhs._root->as_leaf()->clone_recursive(leaf_allocator())->as_base();
       _leaf_level = 0;
     }
     else
     {
-      _root = rhs._root->as_node()->clone_recursive(
-          rhs._leaf_level, node_allocator(), leaf_allocator());
+      _root = rhs._root->as_node()
+                  ->clone_recursive(rhs._leaf_level, node_allocator(),
+                                    leaf_allocator())
+                  ->as_base();
       _leaf_level = rhs._leaf_level;
     }
     return *this;

@@ -179,7 +179,7 @@ struct static_node_base_t
 };
 
 template <typename TreeType>
-struct static_node_t : public static_node_base_t<TreeType>
+struct static_node_t
 {
   using parent_type = static_node_base_t<TreeType>;
   using node_base_type = parent_type;
@@ -194,6 +194,7 @@ struct static_node_t : public static_node_base_t<TreeType>
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
+  parent_type _parent;
   alignas(value_type) uint8_t _data[sizeof(value_type) * TreeType::MAX_ENTRIES];
   size_type _size = 0;
 
@@ -396,7 +397,8 @@ struct static_node_t : public static_node_base_t<TreeType>
       for (auto& c : *this)
       {
         new_node->insert(value_type {
-            c.first, c.second->as_leaf()->clone_recursive(leaf_allocator) });
+            c.first,
+            c.second->as_leaf()->clone_recursive(leaf_allocator)->as_base() });
       }
     }
     else
@@ -404,8 +406,10 @@ struct static_node_t : public static_node_base_t<TreeType>
       for (auto& c : *this)
       {
         new_node->insert(value_type {
-            c.first, c.second->as_node()->clone_recursive(
-                         leaf_level - 1, node_allocator, leaf_allocator) });
+            c.first, c.second->as_node()
+                         ->clone_recursive(leaf_level - 1, node_allocator,
+                                           leaf_allocator)
+                         ->as_base() });
       }
     }
     return new_node;
@@ -433,24 +437,68 @@ struct static_node_t : public static_node_base_t<TreeType>
 
   EH_RTREE_DEVICE_HOST node_type* next()
   {
-    return parent_type::next()->as_node();
+    return _parent.next()->as_node();
   }
   EH_RTREE_DEVICE_HOST node_type const* next() const
   {
-    return parent_type::next()->as_node();
+    return _parent.next()->as_node();
   }
   EH_RTREE_DEVICE_HOST node_type* prev()
   {
-    return parent_type::prev()->as_node();
+    return _parent.prev()->as_node();
   }
   EH_RTREE_DEVICE_HOST node_type const* prev() const
   {
-    return parent_type::prev()->as_node();
+    return _parent.prev()->as_node();
+  }
+
+  // parent node's pointer
+  EH_RTREE_DEVICE_HOST node_type* parent() const
+  {
+    return _parent.parent();
+  }
+  EH_RTREE_DEVICE_HOST bool is_root() const
+  {
+    return _parent.is_root();
+  }
+
+  EH_RTREE_DEVICE_HOST auto& entry()
+  {
+    return parent()->at(_parent._index_on_parent);
+  }
+  EH_RTREE_DEVICE_HOST auto const& entry() const
+  {
+    return parent()->at(_parent._index_on_parent);
+  }
+
+  EH_RTREE_DEVICE_HOST inline node_type* as_node()
+  {
+    return reinterpret_cast<node_type*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline node_type const* as_node() const
+  {
+    return reinterpret_cast<node_type const*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline leaf_type* as_leaf()
+  {
+    return reinterpret_cast<leaf_type*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline leaf_type const* as_leaf() const
+  {
+    return reinterpret_cast<leaf_type const*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline node_base_type* as_base()
+  {
+    return reinterpret_cast<node_base_type*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline node_base_type const* as_base() const
+  {
+    return reinterpret_cast<node_base_type const*>(this);
   }
 };
 
 template <typename TreeType>
-struct static_leaf_node_t : public static_node_base_t<TreeType>
+struct static_leaf_node_t
 {
   using parent_type = static_node_base_t<TreeType>;
   using node_base_type = parent_type;
@@ -465,6 +513,7 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
+  parent_type _parent;
   alignas(value_type) uint8_t _data[sizeof(value_type) * TreeType::MAX_ENTRIES];
   size_type _size = 0;
 
@@ -639,19 +688,63 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
 
   EH_RTREE_DEVICE_HOST leaf_type* next()
   {
-    return parent_type::next()->as_leaf();
+    return _parent.next()->as_leaf();
   }
   EH_RTREE_DEVICE_HOST leaf_type const* next() const
   {
-    return parent_type::next()->as_leaf();
+    return _parent.next()->as_leaf();
   }
   EH_RTREE_DEVICE_HOST leaf_type* prev()
   {
-    return parent_type::prev()->as_leaf();
+    return _parent.prev()->as_leaf();
   }
   EH_RTREE_DEVICE_HOST leaf_type const* prev() const
   {
-    return parent_type::prev()->as_leaf();
+    return _parent.prev()->as_leaf();
+  }
+
+  // parent node's pointer
+  EH_RTREE_DEVICE_HOST node_type* parent() const
+  {
+    return _parent._parent->as_node();
+  }
+  EH_RTREE_DEVICE_HOST bool is_root() const
+  {
+    return _parent.parent() == nullptr;
+  }
+
+  EH_RTREE_DEVICE_HOST auto& entry()
+  {
+    return parent()->at(_parent._index_on_parent);
+  }
+  EH_RTREE_DEVICE_HOST auto const& entry() const
+  {
+    return parent()->at(_parent._index_on_parent);
+  }
+
+  EH_RTREE_DEVICE_HOST inline node_type* as_node()
+  {
+    return reinterpret_cast<node_type*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline node_type const* as_node() const
+  {
+    return reinterpret_cast<node_type const*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline leaf_type* as_leaf()
+  {
+    return reinterpret_cast<leaf_type*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline leaf_type const* as_leaf() const
+  {
+    return reinterpret_cast<leaf_type const*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline node_base_type* as_base()
+  {
+    return reinterpret_cast<node_base_type*>(this);
+  }
+  EH_RTREE_DEVICE_HOST inline node_base_type const* as_base() const
+  {
+    return reinterpret_cast<node_base_type const*>(this);
   }
 };
 

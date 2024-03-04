@@ -30,6 +30,26 @@ target_include_directories( test PUBLIC
   ./include
 )
 
+
+set( CMAKE_CUDA_STANDARD 17 )
+set( CMAKE_CUDA_STANDARD_REQUIRED ON )
+set( CMAKE_CUDA_ARCHITECTURES "75;75" )
+project( cuda_example CXX CUDA )
+find_package( CUDA )
+add_executable( cuda_example
+  example/cuda/cuda.cu
+)
+set_target_properties( cuda_example PROPERTIES
+  CXX_STANDARD 17
+)
+target_link_libraries( cuda_example PUBLIC
+  ${CUDA_LIBRARIES}
+)
+target_include_directories( cuda_example PUBLIC
+  ./include
+)
+
+
 project( visualize_1d CXX )
 add_executable( visualize_1d
   example/visualize_1d/main.cpp
