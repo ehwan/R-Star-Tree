@@ -195,7 +195,9 @@ struct static_node_t
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  parent_type _parent;
+  // c-style class inheritance;
+  // for CUDA CPU<->GPU memory layout mismatch
+  parent_type _parent_class;
   static_vector<value_type, TreeType::MAX_ENTRIES> _child;
 
   static_node_t() = default;
@@ -423,38 +425,38 @@ struct static_node_t
 
   EH_RTREE_DEVICE_HOST node_type* next()
   {
-    return _parent.next()->as_node();
+    return _parent_class.next()->as_node();
   }
   EH_RTREE_DEVICE_HOST node_type const* next() const
   {
-    return _parent.next()->as_node();
+    return _parent_class.next()->as_node();
   }
   EH_RTREE_DEVICE_HOST node_type* prev()
   {
-    return _parent.prev()->as_node();
+    return _parent_class.prev()->as_node();
   }
   EH_RTREE_DEVICE_HOST node_type const* prev() const
   {
-    return _parent.prev()->as_node();
+    return _parent_class.prev()->as_node();
   }
 
   // parent node's pointer
   EH_RTREE_DEVICE_HOST node_type* parent() const
   {
-    return _parent.parent();
+    return _parent_class.parent();
   }
   EH_RTREE_DEVICE_HOST bool is_root() const
   {
-    return _parent.is_root();
+    return _parent_class.is_root();
   }
 
   EH_RTREE_DEVICE_HOST auto& entry()
   {
-    return parent()->at(_parent._index_on_parent);
+    return parent()->at(_parent_class._index_on_parent);
   }
   EH_RTREE_DEVICE_HOST auto const& entry() const
   {
-    return parent()->at(_parent._index_on_parent);
+    return parent()->at(_parent_class._index_on_parent);
   }
 
   EH_RTREE_DEVICE_HOST inline node_type* as_node()
@@ -499,7 +501,9 @@ struct static_leaf_node_t
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  parent_type _parent;
+  // c-style class inheritance;
+  // for CUDA CPU<->GPU memory layout mismatch
+  parent_type _parent_class;
   static_vector<value_type, TreeType::MAX_ENTRIES> _child;
 
   static_leaf_node_t() = default;
@@ -659,38 +663,38 @@ struct static_leaf_node_t
 
   EH_RTREE_DEVICE_HOST leaf_type* next()
   {
-    return _parent.next()->as_leaf();
+    return _parent_class.next()->as_leaf();
   }
   EH_RTREE_DEVICE_HOST leaf_type const* next() const
   {
-    return _parent.next()->as_leaf();
+    return _parent_class.next()->as_leaf();
   }
   EH_RTREE_DEVICE_HOST leaf_type* prev()
   {
-    return _parent.prev()->as_leaf();
+    return _parent_class.prev()->as_leaf();
   }
   EH_RTREE_DEVICE_HOST leaf_type const* prev() const
   {
-    return _parent.prev()->as_leaf();
+    return _parent_class.prev()->as_leaf();
   }
 
   // parent node's pointer
   EH_RTREE_DEVICE_HOST node_type* parent() const
   {
-    return _parent._parent->as_node();
+    return _parent_class.parent();
   }
   EH_RTREE_DEVICE_HOST bool is_root() const
   {
-    return _parent.parent() == nullptr;
+    return _parent_class.is_root();
   }
 
   EH_RTREE_DEVICE_HOST auto& entry()
   {
-    return parent()->at(_parent._index_on_parent);
+    return parent()->at(_parent_class._index_on_parent);
   }
   EH_RTREE_DEVICE_HOST auto const& entry() const
   {
-    return parent()->at(_parent._index_on_parent);
+    return parent()->at(_parent_class._index_on_parent);
   }
 
   EH_RTREE_DEVICE_HOST inline node_type* as_node()
