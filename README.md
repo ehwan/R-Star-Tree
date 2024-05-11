@@ -1,5 +1,5 @@
 # RTree
-Header-Only N-dimensional RTree implementation on C++14
+Header-Only N-dimensional RTree implementation on Modern C++
 
 ## References
  Guttman, A. (1984). "R-Trees: A Dynamic Index Structure for Spatial Searching" (PDF). Proceedings of the 1984 ACM SIGMOD international conference on Management of data – SIGMOD '84. p. 47.
@@ -15,9 +15,30 @@ example code in `example/sample/sample.cpp`
 
 ```cpp
 #include <RTree.hpp>
+#include <iostream>
 #include <iterator>
 #include <type_traits>
-#include <iostream>
+
+// bounding box representation type
+using aabb_type = eh::rtree::aabb_t<double>;
+
+// RTree representation type
+// using aabb_type as bounding box,
+// double as per-data key_type
+// int as per-data data_type
+using rtree_type = eh::rtree::RTree<aabb_type, double, int>;
+
+// std::map - like member types;
+// value_type = std::pair< key_type, mapped_type >
+using value_type = rtree_type::value_type;
+using iterator = rtree_type::iterator;
+using const_iterator = rtree_type::const_iterator;
+static_assert(std::is_same<std::iterator_traits<iterator>::iterator_category,
+                           std::bidirectional_iterator_tag>::value,
+              "Iterators are Bidirectional Iterator");
+
+// query points inside range
+void search_range(rtree_type const& rtree, aabb_type const& range);
 
 int main()
 {
@@ -25,85 +46,106 @@ int main()
   // one-dimension RTree example
   // ***************************
 
-  // bounding box representation type
-  using aabb_type = eh::rtree::aabb_t<double>;
-
-  // RTree representation type
-  // using aabb_type as bounding box,
-  // double as per-data key_type
-  // int as per-data data_type
-  using rtree_type = eh::rtree::RTree< aabb_type, double, int >;
-
-  // std::map - like member types;
-  // value_type = std::pair< key_type, mapped_type >
-  using value_type = rtree_type::value_type;
-  using iterator = rtree_type::iterator;
-  using const_iterator = rtree_type::const_iterator;
-  static_assert( 
-    std::is_same_v<
-      std::iterator_traits<iterator>::iterator_category,
-      std::bidirectional_iterator_tag
-    >,
-    "Iterators are Bidirectional Iterator"
-  );
-
   rtree_type rtree;
 
   // insert 100 arithmetic sequence of points
-  for( int i=0; i<50; ++i )
+  for (int i = 0; i < 50; ++i)
   {
     double point = i;
     int value = i;
-    rtree.insert( value_type(point, value) );
+    rtree.insert(value_type(point, value));
   }
 
   // rtree.begin(), rtree.end()
-  for( value_type value : rtree )
+  // iterates over all values in the tree
+  for (value_type value : rtree)
   {
-    std::cout << "Value Inserted: [" << value.first << ", " << value.second << "]\n";
+    std::cout << "Value Inserted: [" << value.first << ", " << value.second
+              << "]\n";
   }
 
-  // search for points in range [10, 20)
-  rtree.search_inside(
-    aabb_type( 10.0, 20.0-1e-9 ),
-    []( value_type const& v )
-    {
-      std::cout << "Search Result: [" << v.first << ", " << v.second << "]\n";
-      // continue searching
-      return false;
-
-      // return true to stop searching
-    }
-  );
-
-  // ----------------------------
-  // accessing node data directly
-  // ----------------------------
+  // access node data directly
+  constexpr int ROOT_LEVEL = 0;
   rtree_type::node_type* node = rtree.root();
 
   // if 'node' is on leaf level, must cast it to leaf_type
-  if( rtree.leaf_level() == 0 )
+  // since leaf_node and node have different member structures, but treated as
+  // same 'node-pointer'
+  if (rtree.leaf_level() == ROOT_LEVEL)
   {
-    rtree_type::leaf_type* leaf = reinterpret_cast<rtree_type::leaf_type*>(node);
+    rtree_type::leaf_type* leaf
+        = reinterpret_cast<rtree_type::leaf_type*>(node);
     // can be simplified to:
     // rtree_type::leaf_type* leaf = node->as_leaf();
   }
 
   // begin(), end() implemented on node|leaf _type
-  for( auto child : *node )
+  // iterates over all child in that node
+  for (auto child : *node)
   {
     auto child_bounding_box = child.first; // bounding box
-    auto *child_node = child.second->as_node(); // child node pointer
+    auto* child_node = child.second->as_node(); // child node pointer
   }
 
   // leaf's child is value_type
-  for( auto &leaf_child : *node->as_leaf() )
+  for (auto& leaf_child : *node->as_leaf())
   {
     auto child_bounding_box = leaf_child.first;
-    auto &child_data = leaf_child.second;
+    auto& child_data = leaf_child.second;
   }
 
+  // spatial query in rtree example
+  // query points in range [10.5, 20.5]
+  search_range(rtree, aabb_type(10.5, 20.5));
+  // this print 10 points in range [10.5, 20.5]
+
   return 0;
+}
+
+/*
+  Note that 'node' does not have variable of 'level' or 'height'.
+  Thoes could be calculated by traversing from node to the root, but it takes
+  log(N) time complexity to calculate.
+  So it is better to pass 'level' as parameter to recursive function.
+  */
+void search_node_recursive(rtree_type const& rtree,
+                           rtree_type::node_type const* node,
+                           aabb_type const& range,
+                           int node_level)
+{
+  if (node_level == rtree.leaf_level())
+  {
+    // 'node' is on leaf level
+    auto* leaf = node->as_leaf();
+    for (auto value : *leaf)
+    {
+      // check if value is in range
+      if (rtree_type::traits::is_inside(range, value.first))
+      {
+        std::cout << "Value Found: [" << value.first << ", " << value.second
+                  << "]\n";
+      }
+    }
+  }
+  else
+  {
+    // 'node' is not leaf_node
+    for (auto child_node : *node)
+    {
+      // check if child_node possibly contains value in range
+      if (rtree_type::traits::is_overlap(child_node.first, range))
+      {
+        // search recursively on child node
+        search_node_recursive(rtree, child_node.second->as_node(), range,
+                              node_level + 1);
+      }
+    }
+  }
+}
+
+void search_range(rtree_type const& rtree, aabb_type const& range)
+{
+  search_node_recursive(rtree, rtree.root(), range, 0);
 }
 ```
 
@@ -114,125 +156,142 @@ To use custom linear algebra types ( eg. Eigen::Vector3f ), you must implement `
 example below ( `example/eigen/main.cpp` ) shows how to link `Eigen::Vector<>` types to `RTree<>`.
 
 ```cpp
-// use custom vector type in RTree class
+#include <Eigen/Core>
+#include <RTree.hpp>
 
+// use custom vector type in RTree class
 // link Eigen3::Vector type to geometry_traits
-template < typename T, unsigned int Size >
+
+// define AABB type with Eigen::Vector
+template <typename T, unsigned int Size>
 struct my_rect_aabb
 {
-  using vec_t = Eigen::Vector<T,Size>;
+  using vec_t = Eigen::Vector<T, Size>;
 
   vec_t min_, max_;
 
-  // point to rect conversion
-  // only if you use point ( geometry object that does not have volume in N-dimension ) as key_type
-  my_rect_aabb( vec_t const& point )
-    : min_(point),
-      max_(point)
+  // point to rect implicit conversion
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
+  my_rect_aabb(vec_t const& point)
+      : min_(point)
+      , max_(point)
   {
   }
-  my_rect_aabb( vec_t const& min__, vec_t const& max__ )
-    : min_(min__),
-      max_(max__)
+  my_rect_aabb(vec_t const& min__, vec_t const& max__)
+      : min_(min__)
+      , max_(max__)
   {
   }
 };
 
-namespace eh { namespace rtree {
-
-template < typename T, unsigned int Size >
-struct geometry_traits<my_rect_aabb<T,Size>>
+namespace eh
 {
-  using rect_t = my_rect_aabb<T,Size>;
+namespace rtree
+{
+
+// implement geometry_traits for my_rect_aabb
+template <typename T, unsigned int Size>
+struct geometry_traits<my_rect_aabb<T, Size>>
+{
+  using rect_t = my_rect_aabb<T, Size>;
   using vec_t = typename rect_t::vec_t;
 
   // must define area_type as arithmetic_type
-  // s.t., std::numeric_limits<area_type>::max(), lowest() is defined
+  // such that, std::numeric_limits<area_type>::max(), lowest() is defined
   using area_type = T;
 
-  // only if you use point ( geometry object that does not have volume in N-dimension ) as key_type
-  static bool is_inside( rect_t const& rect, vec_t const& v )
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
+  static bool is_inside(rect_t const& rect, vec_t const& v)
   {
-    return (rect.min_.array()<=v.array()).all() && (v.array()<=rect.max_.array()).all();
+    return (rect.min_.array() <= v.array()).all()
+           && (v.array() <= rect.max_.array()).all();
   }
-  static bool is_inside( rect_t const& rect, rect_t const& rect2 )
+  static bool is_inside(rect_t const& rect, rect_t const& rect2)
   {
-    return (rect.min_.array()<=rect2.min_.array()).all() && (rect2.max_.array()<=rect.max_.array()).all();
+    return (rect.min_.array() <= rect2.min_.array()).all()
+           && (rect2.max_.array() <= rect.max_.array()).all();
   }
 
-  // only if you use point ( geometry object that does not have volume in N-dimension ) as key_type
-  static bool is_overlap( rect_t const& rect, vec_t const& v )
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
+  static bool is_overlap(rect_t const& rect, vec_t const& v)
   {
-    return is_inside( rect, v );
+    return is_inside(rect, v);
   }
-  static bool is_overlap( rect_t const& rect, rect_t const& rect2 )
+  static bool is_overlap(rect_t const& rect, rect_t const& rect2)
   {
-    if( (rect2.min_.array() > rect.max_.array()).any() ){ return false; }
-    if( (rect.min_.array() > rect2.max_.array()).any() ){ return false; }
+    if ((rect2.min_.array() > rect.max_.array()).any())
+    {
+      return false;
+    }
+    if ((rect.min_.array() > rect2.max_.array()).any())
+    {
+      return false;
+    }
     return true;
   }
 
-  // only if you use point ( geometry object that does not have volume in N-dimension ) as key_type
-  static rect_t merge( rect_t const& rect, vec_t const& v )
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
+  static rect_t merge(rect_t const& rect, vec_t const& v)
   {
-    return { 
-      rect.min_.array().min(v.array()), 
-      rect.max_.array().max(v.array())
-    };
+    return { rect.min_.array().min(v.array()),
+             rect.max_.array().max(v.array()) };
   }
-  static rect_t merge( rect_t const& rect, rect_t const& rect2 )
+  static rect_t merge(rect_t const& rect, rect_t const& rect2)
   {
-    return { 
-      rect.min_.array().min(rect2.min_.array()), 
-      rect.max_.array().max(rect2.max_.array())
-    };
+    return { rect.min_.array().min(rect2.min_.array()),
+             rect.max_.array().max(rect2.max_.array()) };
   }
 
-
-  static area_type area( rect_t const& rect )
+  static area_type area(rect_t const& rect)
   {
     area_type ret = 1;
-    for( unsigned int i=0; i<Size; ++i )
+    for (unsigned int i = 0; i < Size; ++i)
     {
-      ret *= ( rect.max_[i] - rect.min_[i] );
+      ret *= (rect.max_[i] - rect.min_[i]);
     }
     return ret;
   }
 
   // optional; used in quadratic split resolving conflict
-  static rect_t intersection( rect_t const& rect1, rect_t const& rect2 )
+  static rect_t intersection(rect_t const& rect1, rect_t const& rect2)
   {
-    const vec_t ret_min = rect1.min_.array().max( rect2.min_.array() );
-    return { ret_min, rect1.max_.array().max(rect2.max_.array()).min( ret_min.array() ) };
+    const vec_t ret_min = rect1.min_.array().max(rect2.min_.array());
+    return { ret_min,
+             rect1.max_.array().max(rect2.max_.array()).min(ret_min.array()) };
   }
 };
 
-}}
+}
+}
 
 int main()
 {
-  using vec_t = Eigen::Vector<double,3>;
-  using rect_t = my_rect_aabb<double,3>;
-  using rtree_t = eh::rtree::RTree< rect_t, vec_t, int >;
+  using vec_t = Eigen::Vector<double, 3>;
+  using rect_t = my_rect_aabb<double, 3>;
+  // pass your AABB type (and vec_t for key_type) to template argument
+  using rtree_t = eh::rtree::RTree<rect_t, vec_t, int>;
+  //                                ^ AABB   ^ key  ^ data
+  //                                         <------------> value_type
   rtree_t rtree;
 
-  rtree.insert( {vec_t{0,0,0}, 0} );
-  rtree.insert( {vec_t{0.5,0.5,0.5}, 1} );
-  rtree.insert( {vec_t{0.7,0.7,0.7}, 2} );
-  rtree.insert( {vec_t{0.7,1.3,0.7}, 3} );
+  rtree.insert({ vec_t { 0, 0, 0 }, 0 });
+  rtree.insert({ vec_t { 0.5, 0.5, 0.5 }, 1 });
+  rtree.insert({ vec_t { 0.7, 0.7, 0.7 }, 2 });
+  rtree.insert({ vec_t { 0.7, 1.3, 0.7 }, 3 });
 
   rtree.search_inside(
-    rect_t{
-      vec_t{0.1,0.1,0.1},
-      vec_t{1.1,1.1,1.1}
-    },
-    []( rtree_t::value_type val )
-    {
-      std::cout << "Value Inside [0.1,0.1,0.1]x[1.1,1.1,1.1]: " << val.second << "\n";
-      // continue search
-      return false;
-    }
-  );
+      rect_t { vec_t { 0.1, 0.1, 0.1 }, vec_t { 1.1, 1.1, 1.1 } },
+      [](rtree_t::value_type val)
+      {
+        std::cout << "Value Inside [0.1,0.1,0.1]x[1.1,1.1,1.1]: " << val.second
+                  << "\n";
+        // continue search
+        return false;
+      });
 
   return 0;
 }

@@ -4,8 +4,9 @@
 #include <iostream>
 
 // use custom vector type in RTree class
-
 // link Eigen3::Vector type to geometry_traits
+
+// define AABB type with Eigen::Vector
 template <typename T, unsigned int Size>
 struct my_rect_aabb
 {
@@ -13,9 +14,9 @@ struct my_rect_aabb
 
   vec_t min_, max_;
 
-  // point to rect conversion
-  // only if you use point ( geometry object that does not have volume in
-  // N-dimension ) as key_type
+  // point to rect implicit conversion
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
   my_rect_aabb(vec_t const& point)
       : min_(point)
       , max_(point)
@@ -33,6 +34,7 @@ namespace eh
 namespace rtree
 {
 
+// implement geometry_traits for my_rect_aabb
 template <typename T, unsigned int Size>
 struct geometry_traits<my_rect_aabb<T, Size>>
 {
@@ -40,11 +42,11 @@ struct geometry_traits<my_rect_aabb<T, Size>>
   using vec_t = typename rect_t::vec_t;
 
   // must define area_type as arithmetic_type
-  // s.t., std::numeric_limits<area_type>::max(), lowest() is defined
+  // such that, std::numeric_limits<area_type>::max(), lowest() is defined
   using area_type = T;
 
-  // only if you use point ( geometry object that does not have volume in
-  // N-dimension ) as key_type
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
   static bool is_inside(rect_t const& rect, vec_t const& v)
   {
     return (rect.min_.array() <= v.array()).all()
@@ -56,8 +58,8 @@ struct geometry_traits<my_rect_aabb<T, Size>>
            && (rect2.max_.array() <= rect.max_.array()).all();
   }
 
-  // only if you use point ( geometry object that does not have volume in
-  // N-dimension ) as key_type
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
   static bool is_overlap(rect_t const& rect, vec_t const& v)
   {
     return is_inside(rect, v);
@@ -75,8 +77,8 @@ struct geometry_traits<my_rect_aabb<T, Size>>
     return true;
   }
 
-  // only if you use point ( geometry object that does not have volume in
-  // N-dimension ) as key_type
+  // only if you use point
+  // ( geometry object that does not have volume in N-dimension ) as key_type
   static rect_t merge(rect_t const& rect, vec_t const& v)
   {
     return { rect.min_.array().min(v.array()),
@@ -114,7 +116,10 @@ int main()
 {
   using vec_t = Eigen::Vector<double, 3>;
   using rect_t = my_rect_aabb<double, 3>;
+  // pass your AABB type (and vec_t for key_type) to template argument
   using rtree_t = eh::rtree::RTree<rect_t, vec_t, int>;
+  //                                ^ AABB   ^ key  ^ data
+  //                                         <------------> value_type
   rtree_t rtree;
 
   rtree.insert({ vec_t { 0, 0, 0 }, 0 });
