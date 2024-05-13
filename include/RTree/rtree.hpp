@@ -36,9 +36,18 @@ class RTree
 {
 public:
   // using stack memory for MaxEntries child nodes. instead of std::vector
-  using node_base_type = static_node_base_t<RTree>;
-  using node_type = static_node_t<RTree>;
-  using leaf_type = static_leaf_node_t<RTree>;
+  using node_base_type = static_node_base_t<GeometryType,
+                                            KeyType,
+                                            MappedType,
+                                            MinEntry,
+                                            MaxEntry>;
+  using node_type
+      = static_node_t<GeometryType, KeyType, MappedType, MinEntry, MaxEntry>;
+  using leaf_type = static_leaf_node_t<GeometryType,
+                                       KeyType,
+                                       MappedType,
+                                       MinEntry,
+                                       MaxEntry>;
 
   using size_type = unsigned int;
 

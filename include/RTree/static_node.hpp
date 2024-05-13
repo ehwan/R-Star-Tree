@@ -14,23 +14,43 @@ namespace eh
 namespace rtree
 {
 
-template <typename TreeType>
+template <typename GeometryType, // bounding box representation
+          typename KeyType, // key type, either bounding box or point
+          typename MappedType, // mapped type, user defined
+          unsigned int MinEntry = 4, // m
+          unsigned int MaxEntry = 8 // M
+          >
 struct static_node_t;
 
-template <typename TreeType>
+template <typename GeometryType, // bounding box representation
+          typename KeyType, // key type, either bounding box or point
+          typename MappedType, // mapped type, user defined
+          unsigned int MinEntry = 4, // m
+          unsigned int MaxEntry = 8 // M
+          >
 struct static_leaf_node_t;
 
-template <typename TreeType>
+template <typename GeometryType, // bounding box representation
+          typename KeyType, // key type, either bounding box or point
+          typename MappedType, // mapped type, user defined
+          unsigned int MinEntry = 4, // m
+          unsigned int MaxEntry = 8 // M
+          >
 struct static_node_base_t
 {
   using node_base_type = static_node_base_t;
-  using node_type = static_node_t<TreeType>;
-  using leaf_type = static_leaf_node_t<TreeType>;
+  using node_type
+      = static_node_t<GeometryType, KeyType, MappedType, MinEntry, MaxEntry>;
+  using leaf_type = static_leaf_node_t<GeometryType,
+                                       KeyType,
+                                       MappedType,
+                                       MinEntry,
+                                       MaxEntry>;
 
-  using size_type = typename TreeType::size_type;
-  using geometry_type = typename TreeType::geometry_type;
-  using key_type = typename TreeType::key_type;
-  using mapped_type = typename TreeType::mapped_type;
+  using size_type = unsigned int;
+  using geometry_type = GeometryType;
+  using key_type = KeyType;
+  using mapped_type = MappedType;
 
   node_type* _parent = nullptr;
   size_type _index_on_parent;
@@ -179,23 +199,41 @@ struct static_node_base_t
   }
 };
 
-template <typename TreeType>
-struct static_node_t : public static_node_base_t<TreeType>
+template <typename GeometryType, // bounding box representation
+          typename KeyType, // key type, either bounding box or point
+          typename MappedType, // mapped type, user defined
+          unsigned int MinEntry, // m
+          unsigned int MaxEntry // M
+          >
+struct static_node_t
+    : public static_node_base_t<GeometryType,
+                                KeyType,
+                                MappedType,
+                                MinEntry,
+                                MaxEntry>
 {
-  using parent_type = static_node_base_t<TreeType>;
+  using parent_type = static_node_base_t<GeometryType,
+                                         KeyType,
+                                         MappedType,
+                                         MinEntry,
+                                         MaxEntry>;
   using node_base_type = parent_type;
   using node_type = static_node_t;
-  using leaf_type = static_leaf_node_t<TreeType>;
-  using size_type = typename TreeType::size_type;
-  using geometry_type = typename TreeType::geometry_type;
-  using key_type = typename TreeType::key_type;
-  using mapped_type = typename TreeType::mapped_type;
+  using leaf_type = static_leaf_node_t<GeometryType,
+                                       KeyType,
+                                       MappedType,
+                                       MinEntry,
+                                       MaxEntry>;
+  using size_type = typename parent_type::size_type;
+  using geometry_type = GeometryType;
+  using key_type = KeyType;
+  using mapped_type = MappedType;
   using value_type = std::pair<geometry_type, node_base_type*>;
 
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  static_vector<value_type, TreeType::MAX_ENTRIES> _children;
+  static_vector<value_type, MaxEntry> _children;
 
   static_node_t() = default;
   static_node_t(static_node_t const&) = delete;
@@ -206,7 +244,7 @@ struct static_node_t : public static_node_base_t<TreeType>
   // add child node with bounding box
   void insert(value_type child)
   {
-    assert(size() < TreeType::MAX_ENTRIES);
+    assert(size() < MaxEntry);
     child.second->_parent = this;
     child.second->_index_on_parent = size();
     _children.emplace_back(std::move(child));
@@ -343,6 +381,7 @@ struct static_node_t : public static_node_base_t<TreeType>
   }
 
   // delete its child recursively
+  template <typename TreeType>
   void delete_recursive(int leaf_level, TreeType& tree)
   {
     if (leaf_level == 1)
@@ -363,6 +402,7 @@ struct static_node_t : public static_node_base_t<TreeType>
       }
     }
   }
+  template <typename TreeType>
   node_type* clone_recursive(int leaf_level, TreeType& tree) const
   {
     node_type* new_node = tree.template construct_node<node_type>();
@@ -424,23 +464,38 @@ struct static_node_t : public static_node_base_t<TreeType>
   }
 };
 
-template <typename TreeType>
-struct static_leaf_node_t : public static_node_base_t<TreeType>
+template <typename GeometryType, // bounding box representation
+          typename KeyType, // key type, either bounding box or point
+          typename MappedType, // mapped type, user defined
+          unsigned int MinEntry, // m
+          unsigned int MaxEntry // M
+          >
+struct static_leaf_node_t
+    : public static_node_base_t<GeometryType,
+                                KeyType,
+                                MappedType,
+                                MinEntry,
+                                MaxEntry>
 {
-  using parent_type = static_node_base_t<TreeType>;
+  using parent_type = static_node_base_t<GeometryType,
+                                         KeyType,
+                                         MappedType,
+                                         MinEntry,
+                                         MaxEntry>;
   using node_base_type = parent_type;
-  using node_type = static_node_t<TreeType>;
+  using node_type
+      = static_node_t<GeometryType, KeyType, MappedType, MinEntry, MaxEntry>;
   using leaf_type = static_leaf_node_t;
-  using size_type = typename TreeType::size_type;
-  using geometry_type = typename TreeType::geometry_type;
-  using key_type = typename TreeType::key_type;
-  using mapped_type = typename TreeType::mapped_type;
+  using size_type = typename parent_type::size_type;
+  using geometry_type = GeometryType;
+  using key_type = KeyType;
+  using mapped_type = MappedType;
   using value_type = std::pair<key_type, mapped_type>;
 
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  static_vector<value_type, TreeType::MAX_ENTRIES> _children;
+  static_vector<value_type, MaxEntry> _children;
 
   static_leaf_node_t() = default;
   static_leaf_node_t(static_leaf_node_t const&) = delete;
@@ -451,7 +506,7 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   // add child node with bounding box
   void insert(value_type child)
   {
-    assert(size() < TreeType::MAX_ENTRIES);
+    assert(size() < MaxEntry);
     _children.emplace_back(std::move(child));
   }
   void erase(value_type* pos)
@@ -577,9 +632,11 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   }
 
   // delete its child recursively
+  template <typename TreeType>
   void delete_recursive(TreeType& tree)
   {
   }
+  template <typename TreeType>
   leaf_type* clone_recursive(TreeType& tree) const
   {
     leaf_type* new_node = tree.template construct_node<leaf_type>();
