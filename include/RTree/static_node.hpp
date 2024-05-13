@@ -7,6 +7,7 @@
 
 #include "geometry_traits.hpp"
 #include "global.hpp"
+#include "static_vector.hpp"
 
 namespace eh
 {
@@ -194,8 +195,7 @@ struct static_node_t : public static_node_base_t<TreeType>
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  alignas(value_type) uint8_t _data[sizeof(value_type) * TreeType::MAX_ENTRIES];
-  size_type _size = 0;
+  static_vector<value_type, TreeType::MAX_ENTRIES> _children;
 
   static_node_t() = default;
   static_node_t(static_node_t const&) = delete;
@@ -203,22 +203,13 @@ struct static_node_t : public static_node_base_t<TreeType>
   static_node_t(static_node_t&&) = delete;
   static_node_t& operator=(static_node_t&&) = delete;
 
-  ~static_node_t()
-  {
-    for (auto& c : *this)
-    {
-      c.~value_type();
-    }
-  }
-
   // add child node with bounding box
   void insert(value_type child)
   {
     assert(size() < TreeType::MAX_ENTRIES);
     child.second->_parent = this;
     child.second->_index_on_parent = size();
-    new (data() + size()) value_type(std::move(child));
-    ++_size;
+    _children.emplace_back(std::move(child));
   }
   void erase(node_base_type* node)
   {
@@ -239,11 +230,7 @@ struct static_node_t : public static_node_base_t<TreeType>
 
   void clear()
   {
-    for (auto& c : *this)
-    {
-      c.~value_type();
-    }
-    _size = 0;
+    _children.clear();
   }
 
   // swap two different child node (i, j)
@@ -260,51 +247,50 @@ struct static_node_t : public static_node_base_t<TreeType>
   void pop_back()
   {
     assert(size() > 0);
-    back().~value_type();
-    --_size;
+    _children.pop_back();
   }
 
   // child count
   size_type size() const
   {
-    return _size;
+    return _children.size();
   }
   bool empty() const
   {
-    return _size == 0;
+    return _children.empty();
   }
   // child iterator
   iterator begin()
   {
-    return data();
+    return _children.begin();
   }
   // child iterator
   const_iterator begin() const
   {
-    return data();
+    return _children.begin();
   }
   // child iterator
   iterator end()
   {
-    return data() + size();
+    return _children.end();
   }
   // child iterator
   const_iterator end() const
   {
-    return data() + size();
+    return _children.end();
   }
 
   value_type& at(size_type i)
   {
     assert(i >= 0);
     assert(i < size());
-    return data()[i];
+    return _children.at(i);
   }
   value_type const& at(size_type i) const
   {
     assert(i >= 0);
     assert(i < size());
-    return data()[i];
+    return _children.at(i);
   }
   value_type& operator[](size_type i)
   {
@@ -337,11 +323,11 @@ struct static_node_t : public static_node_base_t<TreeType>
 
   value_type* data()
   {
-    return reinterpret_cast<value_type*>(_data);
+    return _children.data();
   }
   value_type const* data() const
   {
-    return reinterpret_cast<value_type const*>(_data);
+    return _children.data();
   }
 
   // union bouinding box of children
@@ -454,8 +440,7 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
-  alignas(value_type) uint8_t _data[sizeof(value_type) * TreeType::MAX_ENTRIES];
-  size_type _size = 0;
+  static_vector<value_type, TreeType::MAX_ENTRIES> _children;
 
   static_leaf_node_t() = default;
   static_leaf_node_t(static_leaf_node_t const&) = delete;
@@ -463,20 +448,11 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   static_leaf_node_t(static_leaf_node_t&&) = delete;
   static_leaf_node_t& operator=(static_leaf_node_t&&) = delete;
 
-  ~static_leaf_node_t()
-  {
-    for (auto& c : *this)
-    {
-      c.~value_type();
-    }
-  }
-
   // add child node with bounding box
   void insert(value_type child)
   {
     assert(size() < TreeType::MAX_ENTRIES);
-    new (data() + size()) value_type(std::move(child));
-    ++_size;
+    _children.emplace_back(std::move(child));
   }
   void erase(value_type* pos)
   {
@@ -491,11 +467,7 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
 
   void clear()
   {
-    for (auto& c : *this)
-    {
-      c.~value_type();
-    }
-    _size = 0;
+    _children.clear();
   }
 
   // swap two different child node (i, j)
@@ -510,51 +482,50 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   void pop_back()
   {
     assert(size() > 0);
-    back().~value_type();
-    --_size;
+    _children.pop_back();
   }
 
   // child count
   size_type size() const
   {
-    return _size;
+    return _children.size();
   }
   bool empty() const
   {
-    return _size == 0;
+    return _children.empty();
   }
   // child iterator
   iterator begin()
   {
-    return data();
+    return _children.begin();
   }
   // child iterator
   const_iterator begin() const
   {
-    return data();
+    return _children.begin();
   }
   // child iterator
   iterator end()
   {
-    return data() + size();
+    return _children.end();
   }
   // child iterator
   const_iterator end() const
   {
-    return data() + size();
+    return _children.end();
   }
 
   value_type& at(size_type i)
   {
     assert(i >= 0);
     assert(i < size());
-    return data()[i];
+    return _children.at(i);
   }
   value_type const& at(size_type i) const
   {
     assert(i >= 0);
     assert(i < size());
-    return data()[i];
+    return _children.at(i);
   }
   value_type& operator[](size_type i)
   {
@@ -586,11 +557,11 @@ struct static_leaf_node_t : public static_node_base_t<TreeType>
   }
   value_type* data()
   {
-    return reinterpret_cast<value_type*>(_data);
+    return _children.data();
   }
   value_type const* data() const
   {
-    return reinterpret_cast<value_type const*>(_data);
+    return _children.data();
   }
 
   // union bouinding box of children
