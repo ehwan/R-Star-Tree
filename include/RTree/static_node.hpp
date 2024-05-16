@@ -17,24 +17,24 @@ namespace rtree
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          unsigned int MinEntry = 4, // m
-          unsigned int MaxEntry = 8 // M
+          size_type MinEntry = 4, // m
+          size_type MaxEntry = 8 // M
           >
 struct static_node_t;
 
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          unsigned int MinEntry = 4, // m
-          unsigned int MaxEntry = 8 // M
+          size_type MinEntry = 4, // m
+          size_type MaxEntry = 8 // M
           >
 struct static_leaf_node_t;
 
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          unsigned int MinEntry = 4, // m
-          unsigned int MaxEntry = 8 // M
+          size_type MinEntry = 4, // m
+          size_type MaxEntry = 8 // M
           >
 struct static_node_base_t
 {
@@ -47,7 +47,7 @@ struct static_node_base_t
                                        MinEntry,
                                        MaxEntry>;
 
-  using size_type = unsigned int;
+  using size_type = ::eh::rtree::size_type;
   using geometry_type = GeometryType;
   using key_type = KeyType;
   using mapped_type = MappedType;
@@ -202,8 +202,8 @@ struct static_node_base_t
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          unsigned int MinEntry, // m
-          unsigned int MaxEntry // M
+          size_type MinEntry, // m
+          size_type MaxEntry // M
           >
 struct static_node_t
     : public static_node_base_t<GeometryType,
@@ -467,8 +467,8 @@ struct static_node_t
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          unsigned int MinEntry, // m
-          unsigned int MaxEntry // M
+          size_type MinEntry, // m
+          size_type MaxEntry // M
           >
 struct static_leaf_node_t
     : public static_node_base_t<GeometryType,

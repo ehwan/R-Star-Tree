@@ -28,8 +28,8 @@ namespace rtree
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          unsigned int MinEntry = 4, // m
-          unsigned int MaxEntry = 8, // M
+          size_type MinEntry = 4u, // m
+          size_type MaxEntry = 8u, // M
           template <typename _T> class Allocator = std::allocator // allocator
           >
 class RTree
@@ -49,7 +49,7 @@ public:
                                        MinEntry,
                                        MaxEntry>;
 
-  using size_type = unsigned int;
+  using size_type = ::eh::rtree::size_type;
 
   using geometry_type = GeometryType;
   using traits = geometry_traits<GeometryType>;
@@ -81,6 +81,17 @@ public:
 
   using leaf_iterator = node_iterator_t<leaf_type>;
   using const_leaf_iterator = node_iterator_t<leaf_type const>;
+
+  template <typename TA, typename TB>
+  static bool is_overlap(TA const& a, TB const& b)
+  {
+    return traits::is_overlap(a, b);
+  }
+  template <typename TargetBoundary, typename QueryPoint>
+  static bool is_inside(TargetBoundary const& target, QueryPoint const& query)
+  {
+    return traits::is_inside(target, query);
+  }
 
 protected:
   node_base_type* _root = nullptr;

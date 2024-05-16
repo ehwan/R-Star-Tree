@@ -17,25 +17,58 @@ namespace rtree
  * No Copy or Move Assignment defined since this would only be used in
  * child-node container
  */
-template <typename T, unsigned int N>
+template <typename T, size_type N>
 class static_vector
 {
-protected:
-  alignas(T) char data_[sizeof(T) * N];
-  unsigned int size_;
-
 public:
   using value_type = T;
-  using size_type = unsigned int;
+  using size_type = ::eh::rtree::size_type;
 
+protected:
+  alignas(T) char data_[sizeof(T) * N];
+  size_type size_;
+
+public:
   static_vector()
       : size_(0)
   {
   }
-  static_vector(static_vector const&) = delete;
-  static_vector(static_vector&&) = delete;
-  static_vector& operator=(static_vector const&) = delete;
-  static_vector& operator=(static_vector&&) = delete;
+  static_vector(static_vector const& rhs)
+  {
+    for (size_type i = 0; i < rhs.size(); ++i)
+    {
+      push_back(rhs[i]);
+    }
+  }
+  // element-wise move construct.
+  // Note that rhs.size() is not changed.
+  static_vector(static_vector&& rhs)
+  {
+    for (size_type i = 0; i < rhs.size(); ++i)
+    {
+      push_back(std::move(rhs[i]));
+    }
+  }
+  static_vector& operator=(static_vector const& rhs)
+  {
+    clear();
+    for (size_type i = 0; i < rhs.size(); ++i)
+    {
+      push_back(rhs[i]);
+    }
+    return *this;
+  }
+  // element-wise move assignment
+  // Note that rhs.size() is not changed.
+  static_vector& operator=(static_vector&& rhs)
+  {
+    clear();
+    for (size_type i = 0; i < rhs.size(); ++i)
+    {
+      push_back(std::move(rhs[i]));
+    }
+    return *this;
+  }
 
   ~static_vector()
   {
