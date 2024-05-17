@@ -18,6 +18,7 @@ TEST(RTreeTest, Insert)
   std::mt19937 mt(std::random_device {}());
   std::uniform_int_distribution<int> dist(-1000, 1000);
   rtree_type rtree;
+  rtree.reinsert_nodes(3);
 
   for (int i = 0; i < 1000; ++i)
   {
@@ -105,6 +106,7 @@ TEST(RTreeTest, Erase)
   std::mt19937 mt(std::random_device {}());
   std::uniform_int_distribution<int> dist(-1000, 1000);
   rtree_type rtree;
+  rtree.reinsert_nodes(3);
 
   for (int i = 0; i < 1000; ++i)
   {
@@ -200,6 +202,7 @@ TEST(RTreeTest, Search)
   std::uniform_int_distribution<int> dist(-100, 100);
 
   rtree_type rtree;
+  rtree.reinsert_nodes(3);
   bound_type search_range = { -10, 10 };
 
   std::vector<int> inside_list, overlap_list;
@@ -263,6 +266,7 @@ TEST(RTreeTest, Assign)
   std::uniform_int_distribution<int> dist(-100, 100);
 
   rtree_type rtree;
+  rtree.reinsert_nodes(3);
   std::vector<rtree_type::value_type> original;
 
   for (int i = 0; i < 1000; ++i)
@@ -305,6 +309,7 @@ TEST(RTreeTest, Clear)
   std::uniform_int_distribution<int> dist(-100, 100);
 
   rtree_type rtree;
+  rtree.reinsert_nodes(3);
   std::vector<rtree_type::value_type> original;
 
   for (int i = 0; i < 1000; ++i)

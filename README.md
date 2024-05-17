@@ -1,7 +1,15 @@
 # RTree
-Header-Only N-dimensional RTree implementation on Modern C++
+Header-Only N-dimensional R-Tree, R*-Tree implementation on Modern C++
 
 And some features to read-only query in GPU ( CUDA, OpenCL, etc. )
+
+## Features
+ - Header-Only
+ - N-dimensional R-Tree, R*-Tree implementation
+ - Customizable types ( bounding box, key, data ) with `geometry_traits`
+ - convert to contiguous memory layout Read-only query in GPU ( CUDA, OpenCL, etc. )
+ - Quadratic Split, R*-Tree Axis Split (default)
+ - Reinsert scheme (default = 0.3*MaxEntry)
 
 ## References
  Guttman, A. (1984). "R-Trees: A Dynamic Index Structure for Spatial Searching". Proceedings of the 1984 ACM SIGMOD international conference on Management of data – SIGMOD '84. p. 47.
@@ -201,6 +209,9 @@ struct geometry_traits<my_rect_aabb<T, Size>>
   using rect_t = my_rect_aabb<T, Size>;
   using vec_t = typename rect_t::vec_t;
 
+  // ===================== MUST IMPLEMENT =====================
+  constexpr static int DIM = Size;
+
   // must define area_type as arithmetic_type
   // such that, std::numeric_limits<area_type>::max(), lowest() is defined
   using area_type = T;
@@ -260,13 +271,44 @@ struct geometry_traits<my_rect_aabb<T, Size>>
     return ret;
   }
 
-  // optional; used in quadratic split resolving conflict
+  // get scalar value of min_point in axis
+  static auto min_point(rect_t const& bound, int axis)
+  {
+    return bound.min_[axis];
+  }
+  // get scalar value of max_point in axis
+  static auto max_point(rect_t const& bound, int axis)
+  {
+    return bound.max_[axis];
+  }
+  // sum of all length of bound for all dimension
+  static auto margin(rect_t const& bound)
+  {
+    area_type ret = 0;
+    for (unsigned int i = 0; i < Size; ++i)
+    {
+      ret += bound.max_[i] - bound.min_[i];
+    }
+    return ret;
+  }
+
   static rect_t intersection(rect_t const& rect1, rect_t const& rect2)
   {
     const vec_t ret_min = rect1.min_.array().max(rect2.min_.array());
     return { ret_min,
              rect1.max_.array().max(rect2.max_.array()).min(ret_min.array()) };
   }
+
+  // distance between center of bounds
+  // used in reinserting
+  // returned value is used to sort the reinserted nodes,
+  // so no need to call sqrt() nor to be super-accurate
+  static auto distance_center(rect_t const& rect1, rect_t const& rect2)
+  {
+    return (rect1.min_ + rect1.max_ - rect2.min_ - rect2.max_).squaredNorm();
+  }
+
+  // ===================== MUST IMPLEMENT =====================
 };
 
 }
@@ -420,11 +462,16 @@ On the far right, there are green dots representing input points (N = 300). Thes
 ### 2-dimensional R-Tree structure visualization
 `example/visualize_2d`
 
-![](example/visualize_2d/images/N300Quadratic.png)
+![](example/visualize_2d/images/N1000Rstar.png)
 
 The bounding boxes on the graph indicate the coverage range of each node. Additionally, the thickness and color of these bounding boxes are about their respective levels. 'blue', 'orange', and 'black' are used to represent levels 2, 1, and 0, respectively.
 
-Purple dots represent input points (N = 300), generated from a normal distribution with an origin of (0,0), a mean ($\mu$) of 0, and a standard deviation ($\sigma$) of 5.
+Purple dots represent input points (N = 1000), generated from a normal distribution with an origin of (0,0), a mean ($\mu$) of 0, and a standard deviation ($\sigma$) of 5.
+
+Both the Splitting scheme and reinsertion algorithm applied.
+
+
+
 
 
 ### Spatial Indexing and Raycasting

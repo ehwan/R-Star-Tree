@@ -12,7 +12,10 @@ namespace rtree
 template <typename GeometryType>
 struct geometry_traits
 {
-  // ==================== MUST implement ====================
+  // ===================== MUST IMPLEMENT =====================
+  // dimension
+  constexpr static int DIM = 3;
+
   using area_type = typename GeometryType::area_type;
 
   template <typename PointOrBoundType>
@@ -36,16 +39,13 @@ struct geometry_traits
   {
     return bound.area();
   }
-  // ==================== MUST implement ====================
 
-  // ==================== for R-star-Tree ====================
-  // dimension
-  constexpr static int DIM = 3;
-
+  // get scalar value of min_point in axis
   static auto min_point(GeometryType const& bound, int axis)
   {
     return bound.min_point(axis);
   }
+  // get scalar value of max_point in axis
   static auto max_point(GeometryType const& bound, int axis)
   {
     return bound.max_point(axis);
@@ -55,7 +55,6 @@ struct geometry_traits
   {
     return bound.margin();
   }
-  // also used in quadratic split resolving conflict [optional]
   template <typename PointOrBoundType>
   static GeometryType intersection(GeometryType const& bound,
                                    PointOrBoundType const& p)
@@ -63,7 +62,16 @@ struct geometry_traits
     return bound.intersection(p);
   }
 
-  // ==================== for R-star-Tree ====================
+  // distance between center of bounds
+  // used in reinserting
+  // returned value is used to sort the reinserted nodes,
+  // so no need to call sqrt() nor to be super-accurate
+  static auto distance_center(GeometryType const& bound1,
+                              GeometryType const& bound2)
+  {
+    return bound1.distance_center(bound2);
+  }
+  // ===================== MUST IMPLEMENT =====================
 };
 
 }

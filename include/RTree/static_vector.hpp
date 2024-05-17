@@ -87,10 +87,12 @@ public:
   }
   value_type& operator[](size_type i)
   {
+    assert(i < size());
     return at(i);
   }
   value_type const& operator[](size_type i) const
   {
+    assert(i < size());
     return at(i);
   }
   void clear()

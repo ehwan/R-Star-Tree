@@ -1,11 +1,5 @@
 #pragma once
 
-/*
-References:
-Antonin Guttman, R-Trees: A Dynamic Index Structure for Spatial Searching,
-University if California Berkeley
-*/
-
 #include <algorithm>
 #include <cassert>
 #include <limits>
@@ -36,6 +30,10 @@ template <typename GeometryType, // bounding box representation
           >
 class RTree
 {
+  // Node Overflow Splitting Scheme
+  // using splitter_t = quadratic_split_t<RTree>;
+  using splitter_t = rstar_split_t<RTree>;
+
 public:
   // using stack memory for MaxEntries child nodes. instead of std::vector
   using node_base_type = static_node_base_t<GeometryType,
@@ -98,6 +96,18 @@ public:
 protected:
   node_base_type* _root = nullptr;
   int _leaf_level = 0;
+
+  /*
+  ReInsertion Scheme
+  When node overflow occurs
+  (i.e, trying to add more than MAX_ENTRIES into single node),
+  the R*-Tree uses a reinsertion strategy to redistribute the
+  entries in the overflowing node.
+
+  `_reinsert_nodes` child nodes of the overflowing node are removed and
+  reinserted
+  */
+  size_type _reinsert_nodes = 0;
 
   allocator_type<node_type> _node_allocator;
   allocator_type<leaf_type> _leaf_allocator;
@@ -182,6 +192,7 @@ protected:
     }
     return n;
   }
+  // adjust bound from node `N` to root recursively
   void broadcast_new_bound(node_type* N)
   {
     while (N->parent())
@@ -190,6 +201,7 @@ protected:
       N = N->parent();
     }
   }
+  // adjust bound from node `leaf` to root recursively
   void broadcast_new_bound(leaf_type* leaf)
   {
     if (leaf->parent())
@@ -199,21 +211,36 @@ protected:
     }
   }
 
-  // insert node to given parent
-  void insert_node(geometry_type const& bound,
-                   node_base_type* node,
-                   node_type* parent)
+  // insert child to given parent
+  template <typename NodeType>
+  void insert_node(NodeType* parent,
+                   typename NodeType::value_type new_child,
+                   bool reinsert)
   {
-    node_type* pair = nullptr;
+    NodeType* pair = nullptr;
     if (parent->size() == MAX_ENTRIES)
     {
-      pair = split(parent, typename node_type::value_type { bound, node });
+      // overflow treatment
+      if (reinsert && parent->as_node() != root()
+          && parent->parent()->size() > 1
+          && MAX_ENTRIES + 1 - _reinsert_nodes >= MIN_ENTRIES
+          && MAX_ENTRIES + 1 - _reinsert_nodes <= MAX_ENTRIES)
+      {
+        this->reinsert(parent, std::move(new_child));
+      }
+      else
+      {
+        pair = split(parent, std::move(new_child));
+      }
     }
     else
     {
-      parent->insert({ bound, node });
+      parent->insert(std::move(new_child));
     }
     broadcast_new_bound(parent);
+
+    // split occured
+    // insert new node pair to parent
     if (pair)
     {
       if (parent == _root)
@@ -226,13 +253,21 @@ protected:
       }
       else
       {
-        insert_node(pair->calculate_bound(), pair, parent->parent());
+        insert_node(parent->parent(), { pair->calculate_bound(), pair }, true);
       }
     }
   }
 
-  // using splitter_t = quadratic_split_t<RTree>;
-  using splitter_t = rstar_split_t<RTree>;
+  /*
+    Overflow treatment:
+      either split or reinsert
+  */
+
+  /*
+    splitting scheme:
+      quadratic split
+      r*-tree split
+  */
 
   // 'node' contains MAX_ENTRIES nodes;
   // trying to add additional child 'child'
@@ -248,36 +283,111 @@ protected:
     return pair;
   }
 
+  // 'node' contains MAX_ENTRIES nodes;
+  // trying to add additional child 'child'
+  // pick `reinsert_nodes` children from node and reinsert them
+  void reinsert(node_type* node, typename node_type::value_type child)
+  {
+    /*
+    Algorithm Reinsert
+      1. For all M+l entries of a node N, compute the distance
+          between the centers of their rectangles and the center
+          of the bounding rectangle of N
+      2. Sort the entries m decreasing order of their distances
+          computed in (1)
+      3. Remove the first p entries from N and adjust the
+          bounding rectangle of N
+      4. In the sort, defined in (2), starting with the maximum distance
+         (= far reinsert) or minimum distance (= close reinsert),
+         invoke Insert to reinsert the entries
+    */
+
+    const int node_realtive_level_from_leaf
+        = leaf_level() - node->level_recursive();
+    const size_type reinsert_count = _reinsert_nodes;
+
+    geometry_type node_bound = node->calculate_bound();
+    node_bound = traits::merge(node_bound, child.first);
+    std::vector<typename node_type::value_type> children;
+    children.reserve(MAX_ENTRIES + 1);
+    for (auto& c : *node)
+    {
+      children.emplace_back(std::move(c));
+    }
+    children.emplace_back(std::move(child));
+    assert(children.size() == MAX_ENTRIES + 1);
+    node->clear();
+
+    std::sort(children.begin(), children.end(),
+              [&](typename node_type::value_type const& a,
+                  typename node_type::value_type const& b)
+              {
+                return traits::distance_center(node_bound, a.first)
+                       < traits::distance_center(node_bound, b.first);
+              });
+    for (size_type i = 0; i < MAX_ENTRIES + 1 - reinsert_count; ++i)
+    {
+      node->insert(std::move(children[i]));
+    }
+    broadcast_new_bound(node);
+    for (size_type i = MAX_ENTRIES + 1 - reinsert_count; i <= MAX_ENTRIES; ++i)
+    {
+      auto& c = children[i];
+      node_type* chosen = choose_insert_target(
+          c.first, leaf_level() - node_realtive_level_from_leaf);
+      insert_node(chosen, std::move(c), false);
+    }
+  }
+  void reinsert(leaf_type* node, typename leaf_type::value_type child)
+  {
+    const size_type reinsert_count = _reinsert_nodes;
+
+    geometry_type node_bound = node->calculate_bound();
+    node_bound = traits::merge(node_bound, child.first);
+    std::vector<typename leaf_type::value_type> children;
+    children.reserve(MAX_ENTRIES + 1);
+    for (auto& c : *node)
+    {
+      children.emplace_back(std::move(c));
+    }
+    children.emplace_back(std::move(child));
+    node->clear();
+
+    std::sort(children.begin(), children.end(),
+              [&](typename leaf_type::value_type const& a,
+                  typename leaf_type::value_type const& b)
+              {
+                return traits::distance_center(node_bound, a.first)
+                       < traits::distance_center(node_bound, b.first);
+              });
+    for (size_type i = 0; i < MAX_ENTRIES + 1 - reinsert_count; ++i)
+    {
+      node->insert(std::move(children[i]));
+    }
+    broadcast_new_bound(node);
+    for (size_type i = MAX_ENTRIES + 1 - reinsert_count; i <= MAX_ENTRIES; ++i)
+    {
+      auto& c = children[i];
+      leaf_type* chosen
+          = choose_insert_target(c.first, leaf_level())->as_leaf();
+      insert_node(chosen, std::move(c), false);
+    }
+  }
+
 public:
+  // set the number of reinserted nodes
+  void reinsert_nodes(size_type count)
+  {
+    // max >= max+1-count >= min
+    // count >= 1
+    // count <= max - min + 1
+    _reinsert_nodes = std::min(count, MAX_ENTRIES - MIN_ENTRIES + 1);
+  }
   void insert(value_type new_val)
   {
     leaf_type* chosen
         = choose_insert_target(new_val.first, _leaf_level)->as_leaf();
-    leaf_type* pair = nullptr;
-    if (chosen->size() == MAX_ENTRIES)
-    {
-      pair = split(chosen, std::move(new_val));
-    }
-    else
-    {
-      chosen->insert(std::move(new_val));
-    }
-    broadcast_new_bound(chosen);
-    if (pair)
-    {
-      if (chosen->parent() == nullptr)
-      {
-        node_type* new_root = construct_node<node_type>();
-        new_root->insert({ chosen->calculate_bound(), chosen });
-        new_root->insert({ pair->calculate_bound(), pair });
-        _root = new_root;
-        ++_leaf_level;
-      }
-      else
-      {
-        insert_node(pair->calculate_bound(), pair, chosen->parent());
-      }
-    }
+    insert_node(chosen, std::move(new_val), true);
   }
   template <typename... Args>
   void emplace(Args&&... args)
@@ -295,8 +405,13 @@ public:
       return;
     }
 
-    // relative level from leaf, node's children will be reinserted later.
-    std::vector<std::pair<int, node_base_type*>> reinsert_nodes;
+    // it's children will be reinserted later
+    struct erase_reinsert_node_info_t
+    {
+      int relative_level_from_leaf;
+      node_base_type* parent;
+    };
+    std::vector<erase_reinsert_node_info_t> reinsert_nodes;
 
     node_type* node = leaf->parent();
     if (leaf->size() < MIN_ENTRIES)
@@ -305,7 +420,7 @@ public:
       node->erase(leaf);
 
       // insert node to set
-      reinsert_nodes.emplace_back(0, leaf);
+      reinsert_nodes.push_back({ 0, leaf });
     }
     else
     {
@@ -319,7 +434,7 @@ public:
         // delete node from node's parent
         parent->erase(node);
         // insert node to set
-        reinsert_nodes.emplace_back(_leaf_level - level, node);
+        reinsert_nodes.push_back({ _leaf_level - level, node });
       }
       else
       {
@@ -343,26 +458,26 @@ public:
 
     // reinsert entries
     // sustain the relative level from leaf
-    for (auto reinsert : reinsert_nodes)
+    for (erase_reinsert_node_info_t reinsert : reinsert_nodes)
     {
       // leaf node
-      if (reinsert.first == 0)
+      if (reinsert.relative_level_from_leaf == 0)
       {
-        for (auto& c : *reinsert.second->as_leaf())
+        for (auto& c : *(reinsert.parent->as_leaf()))
         {
           insert(std::move(c));
         }
-        destroy_node(reinsert.second->as_leaf());
+        destroy_node(reinsert.parent->as_leaf());
       }
       else
       {
-        for (auto& c : *reinsert.second->as_node())
+        for (auto& c : *(reinsert.parent->as_node()))
         {
-          node_type* chosen
-              = choose_insert_target(c.first, _leaf_level - reinsert.first);
-          insert_node(c.first, c.second, chosen);
+          node_type* chosen = choose_insert_target(
+              c.first, _leaf_level - reinsert.relative_level_from_leaf);
+          insert_node(chosen, c, true);
         }
-        destroy_node(reinsert.second->as_node());
+        destroy_node(reinsert.parent->as_node());
       }
     }
   }
@@ -389,12 +504,14 @@ public:
   RTree()
   {
     init_root();
+    reinsert_nodes(static_cast<size_type>(0.3 * MAX_ENTRIES));
   }
 
   // @TODO
   // mapped_type copy-assignable
   RTree(RTree const& rhs)
   {
+    _reinsert_nodes = rhs._reinsert_nodes;
     if (rhs._leaf_level == 0)
     {
       _root = rhs._root->as_leaf()->clone_recursive(*this);
@@ -421,10 +538,12 @@ public:
       _root = rhs._root->as_node()->clone_recursive(rhs._leaf_level, *this);
       _leaf_level = rhs._leaf_level;
     }
+    _reinsert_nodes = rhs._reinsert_nodes;
     return *this;
   }
   RTree(RTree&& rhs)
   {
+    _reinsert_nodes = rhs._reinsert_nodes;
     _root = rhs._root;
     _leaf_level = rhs._leaf_level;
     rhs.set_null();
@@ -435,6 +554,7 @@ public:
     delete_if();
     _root = rhs._root;
     _leaf_level = rhs._leaf_level;
+    _reinsert_nodes = rhs._reinsert_nodes;
     rhs.set_null();
     rhs.init_root();
     return *this;
@@ -773,10 +893,11 @@ public:
   };
 
 protected:
-  size_type flatten_recursive_leaf(flatten_result_t& res,
-                                   leaf_type const* node,
-                                   size_type parent_index,
-                                   std::integral_constant<bool, true>) const
+  size_type
+  flatten_recursive_leaf(flatten_result_t& res,
+                         leaf_type const* node,
+                         size_type parent_index,
+                         std::integral_constant<bool, true> move_data) const
   {
     const size_type this_index = res.nodes.size();
     res.nodes.emplace_back();
@@ -799,10 +920,11 @@ protected:
     return this_index;
   }
 
-  size_type flatten_recursive_leaf(flatten_result_t& res,
-                                   leaf_type const* node,
-                                   size_type parent_index,
-                                   std::integral_constant<bool, false>) const
+  size_type
+  flatten_recursive_leaf(flatten_result_t& res,
+                         leaf_type const* node,
+                         size_type parent_index,
+                         std::integral_constant<bool, false> move_data) const
   {
     const size_type this_index = res.nodes.size();
     res.nodes.emplace_back();

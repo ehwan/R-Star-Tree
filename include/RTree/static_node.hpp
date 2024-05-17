@@ -91,6 +91,15 @@ struct static_node_base_t
     return reinterpret_cast<leaf_type const*>(this);
   }
 
+  int level_recursive() const
+  {
+    if (parent() == nullptr)
+    {
+      return 0;
+    }
+    return parent()->level_recursive() + 1;
+  }
+
   // get next node on same level
   // this would return node across different parent
   // if it is last node, return nullptr

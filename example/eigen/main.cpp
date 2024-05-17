@@ -41,6 +41,9 @@ struct geometry_traits<my_rect_aabb<T, Size>>
   using rect_t = my_rect_aabb<T, Size>;
   using vec_t = typename rect_t::vec_t;
 
+  // ===================== MUST IMPLEMENT =====================
+  constexpr static int DIM = Size;
+
   // must define area_type as arithmetic_type
   // such that, std::numeric_limits<area_type>::max(), lowest() is defined
   using area_type = T;
@@ -100,12 +103,12 @@ struct geometry_traits<my_rect_aabb<T, Size>>
     return ret;
   }
 
-  constexpr static int DIM = Size;
-
+  // get scalar value of min_point in axis
   static auto min_point(rect_t const& bound, int axis)
   {
     return bound.min_[axis];
   }
+  // get scalar value of max_point in axis
   static auto max_point(rect_t const& bound, int axis)
   {
     return bound.max_[axis];
@@ -121,13 +124,23 @@ struct geometry_traits<my_rect_aabb<T, Size>>
     return ret;
   }
 
-  // optional; used in quadratic split resolving conflict
   static rect_t intersection(rect_t const& rect1, rect_t const& rect2)
   {
     const vec_t ret_min = rect1.min_.array().max(rect2.min_.array());
     return { ret_min,
              rect1.max_.array().max(rect2.max_.array()).min(ret_min.array()) };
   }
+
+  // distance between center of bounds
+  // used in reinserting
+  // returned value is used to sort the reinserted nodes,
+  // so no need to call sqrt() nor to be super-accurate
+  static auto distance_center(rect_t const& rect1, rect_t const& rect2)
+  {
+    return (rect1.min_ + rect1.max_ - rect2.min_ - rect2.max_).squaredNorm();
+  }
+
+  // ===================== MUST IMPLEMENT =====================
 };
 
 }

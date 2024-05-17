@@ -103,6 +103,12 @@ struct geometry_traits<aabb_t<ArithmeticType>>
     return { ret_min, std::max(ret_min, std::min(aabb.max_, aabb2.max_)) };
   }
   // ==================== for R-star-Tree ====================
+
+  static ArithmeticType distance_center(AABB const& b1, AABB const& b2)
+  {
+    ArithmeticType dist = b1.min_ + b1.max_ - b2.min_ - b2.max_;
+    return std::abs(dist);
+  }
 };
 
 // traits for multi-dimension point
@@ -235,6 +241,18 @@ struct geometry_traits<aabb_t<point_t<T, Dim>>>
       sum += max_point(bound, i) - min_point(bound, i);
     }
     return sum;
+  }
+
+  static T distance_center(AABB const& b1, AABB const& b2)
+  {
+    T ret = 0;
+    for (unsigned int i = 0; i < Dim; ++i)
+    {
+      T dist = b1.min_[i] + b1.max_[i] - b2.min_[i] - b2.max_[i];
+      dist /= 2;
+      ret += dist * dist;
+    }
+    return ret;
   }
 };
 }
