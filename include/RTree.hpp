@@ -6,4 +6,3 @@
 #include "RTree/point.hpp"
 #include "RTree/quadratic_split.hpp"
 #include "RTree/rtree.hpp"
-#include "RTree/sequence_split.hpp"

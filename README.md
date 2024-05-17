@@ -4,7 +4,9 @@ Header-Only N-dimensional RTree implementation on Modern C++
 And some features to read-only query in GPU ( CUDA, OpenCL, etc. )
 
 ## References
- Guttman, A. (1984). "R-Trees: A Dynamic Index Structure for Spatial Searching" (PDF). Proceedings of the 1984 ACM SIGMOD international conference on Management of data – SIGMOD '84. p. 47.
+ Guttman, A. (1984). "R-Trees: A Dynamic Index Structure for Spatial Searching". Proceedings of the 1984 ACM SIGMOD international conference on Management of data – SIGMOD '84. p. 47.
+
+ Norbert Beckmann, Hans-Peter begel, Ralf Schneider, Bernhard Seeger (1990). "The R*-tree: An Efficient and Robust Access Method for Points and Rectangles". Proceedings of the 1990 ACM SIGMOD international conference on Management of data - SIGMOD '90. p. 322-331.
 
 ## Dependencies
  **No dependencies required** for core library.

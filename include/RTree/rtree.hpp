@@ -17,9 +17,10 @@ University if California Berkeley
 #include "geometry_traits.hpp"
 #include "global.hpp"
 #include "iterator.hpp"
-#include "quadratic_split.hpp"
-#include "sequence_split.hpp"
 #include "static_node.hpp"
+
+#include "quadratic_split.hpp"
+#include "rstar_split.hpp"
 
 namespace eh
 {
@@ -230,8 +231,8 @@ protected:
     }
   }
 
-  // using splitter_t = sequence_split_t<RTree>;
-  using splitter_t = quadratic_split_t<RTree>;
+  // using splitter_t = quadratic_split_t<RTree>;
+  using splitter_t = rstar_split_t<RTree>;
 
   // 'node' contains MAX_ENTRIES nodes;
   // trying to add additional child 'child'

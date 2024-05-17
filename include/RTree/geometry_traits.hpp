@@ -12,6 +12,7 @@ namespace rtree
 template <typename GeometryType>
 struct geometry_traits
 {
+  // ==================== MUST implement ====================
   using area_type = typename GeometryType::area_type;
 
   template <typename PointOrBoundType>
@@ -35,14 +36,34 @@ struct geometry_traits
   {
     return bound.area();
   }
+  // ==================== MUST implement ====================
 
-  // optional; used in quadratic split resolving conflict
+  // ==================== for R-star-Tree ====================
+  // dimension
+  constexpr static int DIM = 3;
+
+  static auto min_point(GeometryType const& bound, int axis)
+  {
+    return bound.min_point(axis);
+  }
+  static auto max_point(GeometryType const& bound, int axis)
+  {
+    return bound.max_point(axis);
+  }
+  // sum of all length of bound for all dimension
+  static auto margin(GeometryType const& bound)
+  {
+    return bound.margin();
+  }
+  // also used in quadratic split resolving conflict [optional]
   template <typename PointOrBoundType>
   static GeometryType intersection(GeometryType const& bound,
                                    PointOrBoundType const& p)
   {
     return bound.intersection(p);
   }
+
+  // ==================== for R-star-Tree ====================
 };
 
 }

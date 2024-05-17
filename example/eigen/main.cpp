@@ -100,6 +100,27 @@ struct geometry_traits<my_rect_aabb<T, Size>>
     return ret;
   }
 
+  constexpr static int DIM = Size;
+
+  static auto min_point(rect_t const& bound, int axis)
+  {
+    return bound.min_[axis];
+  }
+  static auto max_point(rect_t const& bound, int axis)
+  {
+    return bound.max_[axis];
+  }
+  // sum of all length of bound for all dimension
+  static auto margin(rect_t const& bound)
+  {
+    area_type ret = 0;
+    for (unsigned int i = 0; i < Size; ++i)
+    {
+      ret += bound.max_[i] - bound.min_[i];
+    }
+    return ret;
+  }
+
   // optional; used in quadratic split resolving conflict
   static rect_t intersection(rect_t const& rect1, rect_t const& rect2)
   {

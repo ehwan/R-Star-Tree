@@ -80,12 +80,29 @@ struct geometry_traits<aabb_t<ArithmeticType>>
     return aabb.max_ - aabb.min_;
   }
 
-  // optional; used in quadratic split resolving conflict
+  // ==================== for R-star-Tree ====================
+  // dimension
+  constexpr static int DIM = 1;
+
+  static auto min_point(AABB const& bound, int axis)
+  {
+    return bound.min_;
+  }
+  static auto max_point(AABB const& bound, int axis)
+  {
+    return bound.max_;
+  }
+  // sum of all length of bound for all dimension
+  static auto margin(AABB const& bound)
+  {
+    return bound.max_ - bound.min_;
+  }
   static AABB intersection(AABB const& aabb, AABB const& aabb2)
   {
     const auto ret_min = std::max(aabb.min_, aabb2.min_);
     return { ret_min, std::max(ret_min, std::min(aabb.max_, aabb2.max_)) };
   }
+  // ==================== for R-star-Tree ====================
 };
 
 // traits for multi-dimension point
@@ -196,7 +213,29 @@ struct geometry_traits<aabb_t<point_t<T, Dim>>>
     }
     return ret;
   }
-};
 
+  // ==================== for R-star-Tree ====================
+  // dimension
+  constexpr static int DIM = Dim;
+
+  static auto min_point(AABB const& bound, int axis)
+  {
+    return bound.min_[axis];
+  }
+  static auto max_point(AABB const& bound, int axis)
+  {
+    return bound.max_[axis];
+  }
+  // sum of all length of bound for all dimension
+  static area_type margin(AABB const& bound)
+  {
+    area_type sum = 0;
+    for (unsigned int i = 0; i < Dim; ++i)
+    {
+      sum += max_point(bound, i) - min_point(bound, i);
+    }
+    return sum;
+  }
+};
 }
 } // namespace eh, rtree
