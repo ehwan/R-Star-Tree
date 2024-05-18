@@ -24,8 +24,8 @@ namespace rtree
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          size_type MinEntry = 4u, // m
-          size_type MaxEntry = 8u, // M
+          size_type MinEntry = 8u, // m
+          size_type MaxEntry = 16u, // M
           template <typename _T> class Allocator = std::allocator // allocator
           >
 class RTree

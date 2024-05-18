@@ -52,6 +52,17 @@ target_include_directories( visualize_2d PUBLIC
   ./include
 )
 
+project( visualize_3d CXX )
+add_executable( visualize_3d
+  example/visualize_3d/main.cpp
+)
+set_target_properties( visualize_3d PROPERTIES
+  CXX_STANDARD 17
+)
+target_include_directories( visualize_3d PUBLIC
+  ./include
+)
+
 project( eigen CXX )
 find_package( Eigen3 )
 add_executable( eigen

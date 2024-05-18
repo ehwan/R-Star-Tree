@@ -31,14 +31,16 @@ example code in `example/sample/sample.cpp`
 #include <iterator>
 #include <type_traits>
 
-// bounding box representation type
+// bounding box representation type; 1-dimensional
 using aabb_type = eh::rtree::aabb_t<double>;
 
 // RTree representation type
 // using aabb_type as bounding box,
 // double as per-data key_type
 // int as per-data data_type
-using rtree_type = eh::rtree::RTree<aabb_type, double, int>;
+// 8 as Minimum number of children in a node
+// 16 as Maximum number of children in a node
+using rtree_type = eh::rtree::RTree<aabb_type, double, int, 8, 16>;
 
 // std::map - like member types;
 // value_type = std::pair< key_type, mapped_type >
@@ -459,7 +461,7 @@ The x-axis illustrates different levels within the R-tree, and the y-axis displa
 On the far right, there are green dots representing input points (N = 300). These points are generated from a normal distribution with a mean ($\mu$) of 0 and a standard deviation ($\sigma$) of 5.
 
 
-### 2-dimensional R-Tree structure visualization
+### 2-dimensional R*-Tree structure visualization
 `example/visualize_2d`
 
 ![](example/visualize_2d/images/N1000Rstar.png)
@@ -469,6 +471,13 @@ The bounding boxes on the graph indicate the coverage range of each node. Additi
 Purple dots represent input points (N = 1000), generated from a normal distribution with an origin of (0,0), a mean ($\mu$) of 0, and a standard deviation ($\sigma$) of 5.
 
 Both the Splitting scheme and reinsertion algorithm applied.
+
+### 3-dimensional R*-Tree structure visualization
+`example/visualize_3d`
+
+![](example/visualize_3d/N250.png)
+
+N = 250 points are generated from a normal distribution.
 
 
 

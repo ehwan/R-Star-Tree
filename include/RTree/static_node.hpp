@@ -17,24 +17,24 @@ namespace rtree
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          size_type MinEntry = 4, // m
-          size_type MaxEntry = 8 // M
+          size_type MinEntry, // m
+          size_type MaxEntry // M
           >
 struct static_node_t;
 
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          size_type MinEntry = 4, // m
-          size_type MaxEntry = 8 // M
+          size_type MinEntry, // m
+          size_type MaxEntry // M
           >
 struct static_leaf_node_t;
 
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          size_type MinEntry = 4, // m
-          size_type MaxEntry = 8 // M
+          size_type MinEntry, // m
+          size_type MaxEntry // M
           >
 struct static_node_base_t
 {
