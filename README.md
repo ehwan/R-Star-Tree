@@ -1,4 +1,4 @@
-# RTree
+# R-Star-Tree
 Header-Only N-dimensional R-Tree, R*-Tree implementation on Modern C++
 
 And some features to read-only query in GPU ( CUDA, OpenCL, etc. )
