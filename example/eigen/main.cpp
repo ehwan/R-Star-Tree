@@ -128,7 +128,7 @@ struct geometry_traits<my_rect_aabb<T, Size>>
   {
     const vec_t ret_min = rect1.min_.array().max(rect2.min_.array());
     return { ret_min,
-             rect1.max_.array().max(rect2.max_.array()).min(ret_min.array()) };
+             rect1.max_.array().min(rect2.max_.array()).max(ret_min.array()) };
   }
 
   // distance between center of bounds
