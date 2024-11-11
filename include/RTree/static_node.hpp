@@ -329,13 +329,11 @@ struct static_node_t
 
   value_type& at(size_type i)
   {
-    assert(i >= 0);
     assert(i < size());
     return _children.at(i);
   }
   value_type const& at(size_type i) const
   {
-    assert(i >= 0);
     assert(i < size());
     return _children.at(i);
   }
@@ -581,13 +579,11 @@ struct static_leaf_node_t
 
   value_type& at(size_type i)
   {
-    assert(i >= 0);
     assert(i < size());
     return _children.at(i);
   }
   value_type const& at(size_type i) const
   {
-    assert(i >= 0);
     assert(i < size());
     return _children.at(i);
   }
