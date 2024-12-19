@@ -170,7 +170,7 @@ protected:
       area_type min_area_enlarge = MAX_AREA;
       typename node_type::iterator chosen = n->end();
 
-      for (auto ci = n->begin(); ci != n->end(); ++ci)
+      for (typename node_type::iterator ci = n->begin(); ci != n->end(); ++ci)
       {
         const auto area_enlarge = traits::area(traits::merge(ci->first, bound))
                                   - traits::area(ci->first);
@@ -310,7 +310,7 @@ protected:
     node_bound = traits::merge(node_bound, child.first);
     std::vector<typename node_type::value_type> children;
     children.reserve(MAX_ENTRIES + 1);
-    for (auto& c : *node)
+    for (typename node_type::value_type& c : *node)
     {
       children.emplace_back(std::move(c));
     }
@@ -332,7 +332,7 @@ protected:
     broadcast_new_bound(node);
     for (size_type i = MAX_ENTRIES + 1 - reinsert_count; i <= MAX_ENTRIES; ++i)
     {
-      auto& c = children[i];
+      typename node_type::value_type& c = children[i];
       node_type* chosen = choose_insert_target(
           c.first, leaf_level() - node_realtive_level_from_leaf);
       insert_node(chosen, std::move(c), false);
@@ -346,7 +346,7 @@ protected:
     node_bound = traits::merge(node_bound, child.first);
     std::vector<typename leaf_type::value_type> children;
     children.reserve(MAX_ENTRIES + 1);
-    for (auto& c : *node)
+    for (typename leaf_type::value_type& c : *node)
     {
       children.emplace_back(std::move(c));
     }
@@ -367,7 +367,7 @@ protected:
     broadcast_new_bound(node);
     for (size_type i = MAX_ENTRIES + 1 - reinsert_count; i <= MAX_ENTRIES; ++i)
     {
-      auto& c = children[i];
+      typename leaf_type::value_type& c = children[i];
       leaf_type* chosen
           = choose_insert_target(c.first, leaf_level())->as_leaf();
       insert_node(chosen, std::move(c), false);
@@ -463,7 +463,7 @@ public:
       // leaf node
       if (reinsert.relative_level_from_leaf == 0)
       {
-        for (auto& c : *(reinsert.parent->as_leaf()))
+        for (typename leaf_type::value_type& c : *(reinsert.parent->as_leaf()))
         {
           insert(std::move(c));
         }
@@ -471,7 +471,7 @@ public:
       }
       else
       {
-        for (auto& c : *(reinsert.parent->as_node()))
+        for (typename node_type::value_type& c : *(reinsert.parent->as_node()))
         {
           node_type* chosen = choose_insert_target(
               c.first, _leaf_level - reinsert.relative_level_from_leaf);
@@ -701,11 +701,11 @@ public:
     return _leaf_level;
   }
 
-  auto& node_allocator()
+  allocator_type<node_type>& node_allocator()
   {
     return _node_allocator;
   }
-  auto& leaf_allocator()
+  allocator_type<leaf_type>& leaf_allocator()
   {
     return _leaf_allocator;
   }
@@ -751,7 +751,7 @@ protected:
     }
     else
     {
-      for (auto& c : *node)
+      for (typename _NodeType::value_type& c : *node)
       {
         if (traits::is_overlap(c.first, search_range) == false)
         {
@@ -782,7 +782,7 @@ protected:
     }
     else
     {
-      for (auto& c : *node)
+      for (typename _NodeType::value_type& c : *node)
       {
         if (traits::is_overlap(c.first, search_range) == false)
         {
@@ -802,7 +802,7 @@ protected:
                                           _GeometryType const& search_range,
                                           Functor functor)
   {
-    for (auto& c : *node)
+    for (typename _LeafType::value_type& c : *node)
     {
       if (traits::is_overlap(c.first, search_range) == false)
       {
@@ -821,7 +821,7 @@ protected:
                                          _GeometryType const& search_range,
                                          Functor functor)
   {
-    for (auto& c : *node)
+    for (typename _LeafType::value_type& c : *node)
     {
       if (traits::is_inside(search_range, c.first) == false)
       {

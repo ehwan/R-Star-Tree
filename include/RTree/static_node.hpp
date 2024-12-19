@@ -41,6 +41,7 @@ struct static_node_base_t
   using node_base_type = static_node_base_t;
   using node_type
       = static_node_t<GeometryType, KeyType, MappedType, MinEntry, MaxEntry>;
+  using node_value_type = std::pair<GeometryType, node_base_type*>;
   using leaf_type = static_leaf_node_t<GeometryType,
                                        KeyType,
                                        MappedType,
@@ -65,11 +66,11 @@ struct static_node_base_t
     return _parent == nullptr;
   }
 
-  auto& entry()
+  node_value_type& entry()
   {
     return parent()->at(_index_on_parent);
   }
-  auto const& entry() const
+  node_value_type const& entry() const
   {
     return parent()->at(_index_on_parent);
   }
@@ -394,7 +395,7 @@ struct static_node_t
     if (leaf_level == 1)
     {
       // child is leaf node
-      for (auto& c : *this)
+      for (value_type& c : *this)
       {
         c.second->as_leaf()->delete_recursive(tree);
         tree.destroy_node(c.second->as_leaf());
@@ -402,7 +403,7 @@ struct static_node_t
     }
     else
     {
-      for (auto& c : *this)
+      for (value_type& c : *this)
       {
         c.second->as_node()->delete_recursive(leaf_level - 1, tree);
         tree.destroy_node(c.second->as_node());
@@ -416,18 +417,19 @@ struct static_node_t
     if (leaf_level == 1)
     {
       // child is leaf node
-      for (auto& c : *this)
+      for (value_type const& c : *this)
       {
         new_node->insert(
-            { c.first, c.second->as_leaf()->clone_recursive(tree) });
+            value_type { c.first, c.second->as_leaf()->clone_recursive(tree) });
       }
     }
     else
     {
-      for (auto& c : *this)
+      for (value_type const& c : *this)
       {
-        new_node->insert({ c.first, c.second->as_node()->clone_recursive(
-                                        leaf_level - 1, tree) });
+        new_node->insert(value_type {
+            c.first,
+            c.second->as_node()->clone_recursive(leaf_level - 1, tree) });
       }
     }
     return new_node;
@@ -438,14 +440,14 @@ struct static_node_t
     if (leaf_level == 1)
     {
       // child is leaf node
-      for (auto& c : *this)
+      for (value_type const& c : *this)
       {
         ret += c.second->as_leaf()->size_recursive();
       }
     }
     else
     {
-      for (auto& c : *this)
+      for (value_type const& c : *this)
       {
         ret += c.second->as_node()->size_recursive(leaf_level - 1);
       }
@@ -645,7 +647,7 @@ struct static_leaf_node_t
   leaf_type* clone_recursive(TreeType& tree) const
   {
     leaf_type* new_node = tree.template construct_node<leaf_type>();
-    for (auto& c : *this)
+    for (value_type const& c : *this)
     {
       new_node->insert(c);
     }

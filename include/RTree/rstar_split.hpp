@@ -56,7 +56,8 @@ struct rstar_split_t
     {
       // sort along axis
       std::sort(entries.begin(), entries.end(),
-                [axis](const auto& a, const auto& b)
+                [axis](typename NodeType::value_type const& a,
+                       typename NodeType::value_type const& b)
                 {
                   if (traits::min_point(a.first, axis)
                       < traits::min_point(b.first, axis))
@@ -112,7 +113,8 @@ struct rstar_split_t
       int axis = choose_axis;
       // sort along axis
       std::sort(entries.begin(), entries.end(),
-                [axis](const auto& a, const auto& b)
+                [axis](typename NodeType::value_type const& a,
+                       typename NodeType::value_type const& b)
                 {
                   if (traits::min_point(a.first, axis)
                       < traits::min_point(b.first, axis))
