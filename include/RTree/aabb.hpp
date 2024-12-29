@@ -3,13 +3,105 @@
 #include <algorithm>
 
 #include "geometry_traits.hpp"
-#include "global.hpp"
-#include "point.hpp"
 
 namespace eh
 {
 namespace rtree
 {
+
+template <typename ScalarType, unsigned int Dim>
+class point_t
+{
+public:
+  using size_type = unsigned int;
+  using scalar_type = ScalarType;
+  using value_type = ScalarType;
+
+protected:
+  scalar_type _data[Dim];
+
+public:
+  point_t()
+  {
+  }
+  point_t(point_t const& rhs)
+  {
+    for (size_type i = 0; i < size(); ++i)
+    {
+      _data[i] = rhs._data[i];
+    }
+  }
+  template <typename T0, typename... Ts>
+  point_t(T0 arg0, Ts... args)
+  {
+    static_assert(sizeof...(args) + 1 == Dim,
+                  "Constructor Dimension not match");
+    set<0>(arg0, args...);
+  }
+  template <size_type I = 0, typename T0, typename... Ts>
+  void set(T0 arg0, Ts... args)
+  {
+    _data[I] = arg0;
+    set<I + 1>(args...);
+  }
+  template <size_type I>
+  void set()
+  {
+  }
+  template <typename Iterator>
+  void assign(Iterator begin, Iterator end)
+  {
+    size_type i = 0;
+    while (begin != end && i < Dim)
+    {
+      _data[i++] = *begin++;
+    }
+  }
+  point_t& operator=(point_t const& rhs)
+  {
+    for (size_type i = 0; i < size(); ++i)
+    {
+      _data[i] = rhs._data[i];
+    }
+    return *this;
+  }
+  constexpr static size_type size()
+  {
+    return Dim;
+  }
+  scalar_type& operator[](size_type i)
+  {
+    return _data[i];
+  }
+  scalar_type operator[](size_type i) const
+  {
+    return _data[i];
+  }
+  scalar_type* data()
+  {
+    return _data;
+  }
+  scalar_type const* data() const
+  {
+    return _data;
+  }
+  scalar_type* begin()
+  {
+    return _data;
+  }
+  scalar_type const* begin() const
+  {
+    return _data;
+  }
+  scalar_type* end()
+  {
+    return _data + size();
+  }
+  scalar_type const* end() const
+  {
+    return _data + size();
+  }
+};
 
 // bounding box representation
 template <typename PointType>
@@ -32,7 +124,7 @@ struct aabb_t
 template <typename ArithmeticType>
 struct geometry_traits<aabb_t<ArithmeticType>>
 {
-  using area_type = ArithmeticType;
+  using scalar_type = ArithmeticType;
 
   using AABB = aabb_t<ArithmeticType>;
 
@@ -75,7 +167,7 @@ struct geometry_traits<aabb_t<ArithmeticType>>
     return { std::min(aabb.min_, aabb2.min_), std::max(aabb.max_, aabb2.max_) };
   }
 
-  static area_type area(AABB const& aabb)
+  static scalar_type area(AABB const& aabb)
   {
     return aabb.max_ - aabb.min_;
   }
@@ -92,22 +184,13 @@ struct geometry_traits<aabb_t<ArithmeticType>>
   {
     return bound.max_;
   }
-  // sum of all length of bound for all dimension
-  static auto margin(AABB const& bound)
+  static void set_min_point(AABB& bound, int axis, ArithmeticType value)
   {
-    return bound.max_ - bound.min_;
+    bound.min_ = value;
   }
-  static AABB intersection(AABB const& aabb, AABB const& aabb2)
+  static void set_max_point(AABB& bound, int axis, ArithmeticType value)
   {
-    const auto ret_min = std::max(aabb.min_, aabb2.min_);
-    return { ret_min, std::max(ret_min, std::min(aabb.max_, aabb2.max_)) };
-  }
-  // ==================== for R-star-Tree ====================
-
-  static ArithmeticType distance_center(AABB const& b1, AABB const& b2)
-  {
-    ArithmeticType dist = b1.min_ + b1.max_ - b2.min_ - b2.max_;
-    return std::abs(dist);
+    bound.max_ = value;
   }
 };
 
@@ -115,7 +198,7 @@ struct geometry_traits<aabb_t<ArithmeticType>>
 template <typename T, unsigned int Dim>
 struct geometry_traits<aabb_t<point_t<T, Dim>>>
 {
-  using area_type = T;
+  using scalar_type = T;
 
   using Point = point_t<T, Dim>;
   using AABB = aabb_t<Point>;
@@ -150,32 +233,6 @@ struct geometry_traits<aabb_t<point_t<T, Dim>>>
       return false;
     }
     return true;
-  }
-
-  static AABB merge(AABB const& aabb, Point const& p)
-  {
-    return { min(aabb.min_, p), max(aabb.max_, p) };
-  }
-  static AABB merge(AABB const& aabb, AABB const& aabb2)
-  {
-    return { min(aabb.min_, aabb2.min_), max(aabb.max_, aabb2.max_) };
-  }
-
-  static area_type area(AABB const& aabb)
-  {
-    area_type ret = 1;
-    for (unsigned int i = 0; i < Dim; ++i)
-    {
-      ret *= (aabb.max_[i] - aabb.min_[i]);
-    }
-    return ret;
-  }
-
-  // optional; used in quadratic split resolving conflict
-  static AABB intersection(AABB const& aabb, AABB const& aabb2)
-  {
-    const auto ret_min = max(aabb.min_, aabb2.min_);
-    return { ret_min, max(ret_min, min(aabb.max_, aabb2.max_)) };
   }
 
   static bool less_than(Point const& lhs, Point const& rhs)
@@ -232,28 +289,31 @@ struct geometry_traits<aabb_t<point_t<T, Dim>>>
   {
     return bound.max_[axis];
   }
-  // sum of all length of bound for all dimension
-  static area_type margin(AABB const& bound)
+  static void set_min_point(AABB& bound, int axis, T value)
   {
-    area_type sum = 0;
-    for (unsigned int i = 0; i < Dim; ++i)
-    {
-      sum += max_point(bound, i) - min_point(bound, i);
-    }
-    return sum;
+    bound.min_[axis] = value;
   }
-
-  static T distance_center(AABB const& b1, AABB const& b2)
+  static void set_max_point(AABB& bound, int axis, T value)
   {
-    T ret = 0;
-    for (unsigned int i = 0; i < Dim; ++i)
-    {
-      T dist = b1.min_[i] + b1.max_[i] - b2.min_[i] - b2.max_[i];
-      dist /= 2;
-      ret += dist * dist;
-    }
-    return ret;
+    bound.max_[axis] = value;
   }
 };
+
+template <typename T, unsigned int Dim>
+struct geometry_traits<point_t<T, Dim>>
+{
+  using scalar_type = T;
+  constexpr static int DIM = Dim;
+
+  static auto min_point(point_t<T, Dim> const& bound, int axis)
+  {
+    return bound[axis];
+  }
+  static auto max_point(point_t<T, Dim> const& bound, int axis)
+  {
+    return bound[axis];
+  }
+};
+
 }
 } // namespace eh, rtree

@@ -1,15 +1,24 @@
 # R-Star-Tree
-Header-Only N-dimensional R-Tree, R*-Tree implementation on Modern C++
+Header-Only N-dimensional [R-Tree](https://en.wikipedia.org/wiki/R-tree), [R*-Tree](https://en.wikipedia.org/wiki/R*-tree) implementation on Modern C++
 
 And some features to read-only query in GPU ( CUDA, OpenCL, etc. )
 
+
+![](example/visualize_2d/images/animation.gif)
+
+The bounding boxes on the graph indicate the coverage range of each node. Additionally, the thickness and color of these bounding boxes are about their respective levels. 'blue', 'orange', and 'black' are used to represent levels 2, 1, and 0, respectively.
+
+Purple dots represent input points (N = 1000), generated from a normal distribution with an origin of (0,0), a mean ($\mu$) of 0, and a standard deviation ($\sigma$) of 5.
+
+Both the Splitting scheme and reinsertion algorithm applied.
+
 ## Features
  - Header-Only
- - N-dimensional R-Tree, R*-Tree implementation
+ - N-dimensional [R-Tree](https://en.wikipedia.org/wiki/R*-tree), [R*-Tree](https://en.wikipedia.org/wiki/R*-tree) implementation
  - Customizable types ( bounding box, key, data ) with `geometry_traits`
  - convert to contiguous memory layout Read-only query in GPU ( CUDA, OpenCL, etc. )
- - Quadratic Split, R*-Tree Axis Split (default)
- - Reinsert scheme (default = 0.3*MaxEntry)
+ - Quadratic Split, [R*-Tree Axis Split](https://en.wikipedia.org/wiki/R*-tree) (default)
+ - Reinsert scheme
 
 ## References
  Guttman, A. (1984). "R-Trees: A Dynamic Index Structure for Spatial Searching". Proceedings of the 1984 ACM SIGMOD international conference on Management of data – SIGMOD '84. p. 47.
@@ -22,38 +31,7 @@ And some features to read-only query in GPU ( CUDA, OpenCL, etc. )
  Unit Tests are using [Google Test](https://github.com/google/googletest), examples are using [Eigen](https://eigen.tuxfamily.org/).
 
 ## Sample Codes
-
-example code in `example/sample/sample.cpp`
-
 ```cpp
-#include <RTree.hpp>
-#include <iostream>
-#include <iterator>
-#include <type_traits>
-
-// bounding box representation type; 1-dimensional
-using aabb_type = eh::rtree::aabb_t<double>;
-
-// RTree representation type
-// using aabb_type as bounding box,
-// double as per-data key_type
-// int as per-data data_type
-// 8 as Minimum number of children in a node
-// 16 as Maximum number of children in a node
-using rtree_type = eh::rtree::RTree<aabb_type, double, int, 8, 16>;
-
-// std::map - like member types;
-// value_type = std::pair< key_type, mapped_type >
-using value_type = rtree_type::value_type;
-using iterator = rtree_type::iterator;
-using const_iterator = rtree_type::const_iterator;
-static_assert(std::is_same<std::iterator_traits<iterator>::iterator_category,
-                           std::bidirectional_iterator_tag>::value,
-              "Iterators are Bidirectional Iterator");
-
-// query points inside range
-void search_range(rtree_type const& rtree, aabb_type const& range);
-
 int main()
 {
   // ***************************
@@ -78,275 +56,195 @@ int main()
               << "]\n";
   }
 
-  // access node data directly
-  constexpr int ROOT_LEVEL = 0;
-  rtree_type::node_type* node = rtree.root();
-
-  // if 'node' is on leaf level, must cast it to leaf_type
-  // since leaf_node and node have different member structures, but treated as
-  // same 'node-pointer'
-  if (rtree.leaf_level() == ROOT_LEVEL)
+  auto geometry_filter = [](aabb_type const& bound) -> int
   {
-    rtree_type::leaf_type* leaf
-        = reinterpret_cast<rtree_type::leaf_type*>(node);
-    // can be simplified to:
-    // rtree_type::leaf_type* leaf = node->as_leaf();
-  }
-
-  // begin(), end() implemented on node|leaf _type
-  // iterates over all child in that node
-  for (auto child : *node)
+    // if bound does not touch [10,20] skip
+    if (bound.min_ > 20 || bound.max_ < 10)
+      return 0;
+    return 1;
+  };
+  auto data_functor = [](std::pair<double, int> value) -> bool
   {
-    auto child_bounding_box = child.first; // bounding box
-    auto* child_node = child.second->as_node(); // child node pointer
-  }
+    std::cout << "Value Found: [" << value.first << ", " << value.second
+              << "]\n";
+    return false;
+  };
 
-  // leaf's child is value_type
-  for (auto& leaf_child : *node->as_leaf())
-  {
-    auto child_bounding_box = leaf_child.first;
-    auto& child_data = leaf_child.second;
-  }
-
-  // spatial query in rtree example
-  // query points in range [10.5, 20.5]
-  search_range(rtree, aabb_type(10.5, 20.5));
-  // this print 10 points in range [10.5, 20.5]
-
-  return 0;
-}
-
-/*
-  Note that 'node' does not have variable of 'level' or 'height'.
-  Thoes could be calculated by traversing from node to the root, but it takes
-  log(N) time complexity to calculate.
-  So it is better to pass 'level' as parameter to recursive function.
-  */
-void search_node_recursive(rtree_type const& rtree,
-                           rtree_type::node_type const* node,
-                           aabb_type const& range,
-                           int node_level)
-{
-  if (node_level == rtree.leaf_level())
-  {
-    // 'node' is on leaf level
-    auto* leaf = node->as_leaf();
-    for (auto value : *leaf)
-    {
-      // check if value is in range
-      if (rtree_type::traits::is_inside(range, value.first))
-      {
-        std::cout << "Value Found: [" << value.first << ", " << value.second
-                  << "]\n";
-      }
-    }
-  }
-  else
-  {
-    // 'node' is not leaf_node
-    for (auto child_node : *node)
-    {
-      // check if child_node possibly contains value in range
-      if (rtree_type::traits::is_overlap(child_node.first, range))
-      {
-        // search recursively on child node
-        search_node_recursive(rtree, child_node.second->as_node(), range,
-                              node_level + 1);
-      }
-    }
-  }
-}
-
-void search_range(rtree_type const& rtree, aabb_type const& range)
-{
-  search_node_recursive(rtree, rtree.root(), range, 0);
+  rtree.search(geometry_filter, data_functor);
 }
 ```
 
-## Using your own linear-algebra types
+## Step-by-Step Guide
+### Installation
+Header-Only library, just include `RTree.hpp` in your project.
+### `RTree` class
+```cpp
+template <typename GeometryType,
+          typename KeyType,
+          typename MappedType,
+          typename Config = DefaultConfig,
+          template <typename _T> class Allocator = std::allocator // allocator
+          >
+class RTree
+```
 
-To use custom linear algebra types ( eg. Eigen::Vector3f ), you must implement `eh::rtree::geometry_traits`.
+ - `GeometryType`: Type representing the Axis-Aligned Bounding Box (AABB) in N-dimensional space. Must implement [`geometry_traits`](#geometry_traits-class) for the type.
+ - `KeyType`: Type of the key used to `(key, value)` pair of user inserted data. Must implement [`geometry_traits`](#geometry_traits-class) for the type.
+ - `MappedType`: Type of the value used to `(key, value)` pair of user inserted data.
+ - `Config`: [Configuration class](#config-class) for R-Tree. Default is `DefaultConfig`.
+ - `Allocator`: Allocator for internal data structure. Default is `std::allocator`.
 
-example below ( `example/eigen/main.cpp` ) shows how to link `Eigen::Vector<>` types to `RTree<>`.
+ #### Type aliases
+ | Type | Description |
+ | --- | --- |
+  | `value_type` | `std::pair<KeyType, MappedType>` |
+  | `node_type` | Internal non-leaf node type |
+  | `leaf_type` | Internal leaf node type |
+  | `iterator` | Bidirectional iterator |
+  | `const_iterator` | Const bidirectional iterator |
+
+ #### Member functions
+  | Function | Description |
+  | --- | --- |
+  | `insert(value_type value)`, `emplace( ... )` | Insert a value into the R-Tree |
+  | `clear()` | Clear the R-Tree |
+  | [`begin()`, `end()`](#with-rtreeiterator) | Iterator to the beginning and end of the R-Tree |
+  | [`node_begin(lv)`, `node_end(lv)`, `leaf_begin()`, `leaf_end()`](#with-rtreeiterator) | Iterator to the every nodes on specific level |
+  | [`root()`](#directly-accessing-node-pointer) | Get the root node of the R-Tree |
+  | [`leaf_level()`](#directly-accessing-node-pointer) | Get the level of the leaf nodes in the R-Tree |
+  | [`flatten()`, `flatten_move()`](#for-read-only-usage-in-gpu--cuda-opencl-etc-) | Convert the R-Tree structure to a dense linear 1D buffer |
+  | `rebalance()` | Rebalance the bounding box distribution of the R-Tree by reinserting whole data |
+
+#### `Config` class
+```cpp
+struct MyConfig
+{
+  constexpr static size_type MIN_ENTRIES = 4;
+  constexpr static size_type MAX_ENTRIES = 8;
+  constexpr static size_type REINSERT_COUNT = 3;
+  using split_algorithm = RStarSplit;
+};
+```
+ - `MIN_ENTRIES`: Minimum number of entries in a node. Default is 4.
+ - `MAX_ENTRIES`: Maximum number of entries in a node. Default is 8.
+ - `REINSERT_COUNT`: Number of entries to be reinserted when node overflow occurs. Default is 3.
+ - `split_algorithm`: Splitting scheme for node overflow. Either `QuadraticSplit` or `RStarSplit`. Default is `RStarSplit`.
+
+
+Like other self-balancing trees, R-Tree balances the number of children in each node.
+The number of children in each node is determined by `MIN_ENTRIES` and `MAX_ENTRIES`.
+When the number of children exceeds `MAX_ENTRIES`, there are 2 ways of handling the overflow: *Reinsertion* and *Splitting*.
+`REINSERT_COUNT` is the number of entries to be reinserted when node overflow occurs.
+`split_algorithm` is the splitting scheme for node overflow.
+
+***Note***:
+ - At the memory aspect, at least `MIN_ENTRIES` data are lied sequentially on memory.
+ - `MIN_ENTRIES` must be less or equal to `MAX_ENTRIES/2`.
+ - `MIN_ENTRIES` <= `MAX_ENTRIES` + 1 - `REINSERT_COUNT` <= `MAX_ENTRIES`.
+
+### `geometry_traits` class
+```cpp
+template <>
+struct geometry_traits< Eigen::Vector3d >
+{
+  // dimension
+  constexpr static int DIM = 3;
+
+  using scalar_type = double;
+
+  static scalar_type min_point(Eigen::Vector3d const& g, int axis)
+  {
+    return g.min_bound[axis];
+  }
+  static scalar_type max_point(Eigen::Vector3d const& g, int axis)
+  {
+    return g.max_bound[axis];
+  }
+  static void set_min_point(Eigen::Vector3d& g, int axis, scalar_type value)
+  {
+    g.min_bound[axis] = value;
+  }
+  static void set_max_point(Eigen::Vector3d& g, int axis, scalar_type value)
+  {
+    g.max_bound[axis] = value;
+  }
+};
+```
+  - `DIM`: Dimension of the geometry type.
+  - `scalar_type`: Type representing the scalar value of the geometry type. ( eg. `double` for `Eigen::Vector3d`, `int` for `Eigen::Vector2i` )
+  - `min_point`: Get the scalar value of the minimum point in the given axis.
+  - `max_point`: Get the scalar value of the maximum point in the given axis.
+  - `set_min_point`: Set the scalar value of the minimum point in the given axis. ( Not required for `KeyType` )
+  - `set_max_point`: Set the scalar value of the maximum point in the given axis. ( Not required for `KeyType` )
+
+Both `GeometryType` and `KeyType` must implement `geometry_traits` to be used in `RTree`.
+User must specify what dimension is, and how to access the scalar data of the geometry object.
+For type used in `KeyType`, `set_min_point` and `set_max_point` are not required.
+
+### Querying with `RTree::search()`
+```cpp
+template <typename GeometryFilter, typename DataFunctor>
+void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor)
+
+template <typename GeometryFilter, typename DataFunctor>
+void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor) const
+```
+- `GeometryFilter`: A callable object that takes a `GeometryType` and returns a integer value. 
+    - If the return value is `1`, search will be performed recursively on the children of the node.
+    - If the return value is `0`, every child of this node will be ignored.
+    - If the return value is `-1`, the search will immediately stop and return out of the `search` function.
+- `DataFunctor`: A callable object that takes a `value_type` and returns boolean value.
+If the return value is `true`, the query will immediately stop and return out of the `search` function.
 
 ```cpp
-#include <Eigen/Core>
-#include <RTree.hpp>
+// Example usage of the search function
+rtree_type rtree = /* construct and populate your RTree */;
 
-// use custom vector type in RTree class
-// link Eigen3::Vector type to geometry_traits
-
-// define AABB type with Eigen::Vector
-template <typename T, unsigned int Size>
-struct my_rect_aabb
+auto geometry_filter = []( my_rect const& rect ) -> int
 {
-  using vec_t = Eigen::Vector<T, Size>;
-
-  vec_t min_, max_;
-
-  // point to rect implicit conversion
-  // only if you use point
-  // ( geometry object that does not have volume in N-dimension ) as key_type
-  my_rect_aabb(vec_t const& point)
-      : min_(point)
-      , max_(point)
-  {
-  }
-  my_rect_aabb(vec_t const& min__, vec_t const& max__)
-      : min_(min__)
-      , max_(max__)
-  {
-  }
+  // return 1 if the rect intersects with the query range
+  // return 0 if the rect is completely outside the query range
+  // return -1 if the search should stop
+  return rect.intersects_with_query_range() ? 1 : 0;
 };
-
-namespace eh
+auto data_functor = []( std::pair<key_type, mapped_type> const& value ) -> bool
 {
-namespace rtree
-{
-
-// implement geometry_traits for my_rect_aabb
-template <typename T, unsigned int Size>
-struct geometry_traits<my_rect_aabb<T, Size>>
-{
-  using rect_t = my_rect_aabb<T, Size>;
-  using vec_t = typename rect_t::vec_t;
-
-  // ===================== MUST IMPLEMENT =====================
-  constexpr static int DIM = Size;
-
-  // must define area_type as arithmetic_type
-  // such that, std::numeric_limits<area_type>::max(), lowest() is defined
-  using area_type = T;
-
-  // only if you use point
-  // ( geometry object that does not have volume in N-dimension ) as key_type
-  static bool is_inside(rect_t const& rect, vec_t const& v)
-  {
-    return (rect.min_.array() <= v.array()).all()
-           && (v.array() <= rect.max_.array()).all();
-  }
-  static bool is_inside(rect_t const& rect, rect_t const& rect2)
-  {
-    return (rect.min_.array() <= rect2.min_.array()).all()
-           && (rect2.max_.array() <= rect.max_.array()).all();
-  }
-
-  // only if you use point
-  // ( geometry object that does not have volume in N-dimension ) as key_type
-  static bool is_overlap(rect_t const& rect, vec_t const& v)
-  {
-    return is_inside(rect, v);
-  }
-  static bool is_overlap(rect_t const& rect, rect_t const& rect2)
-  {
-    if ((rect2.min_.array() > rect.max_.array()).any())
-    {
-      return false;
-    }
-    if ((rect.min_.array() > rect2.max_.array()).any())
-    {
-      return false;
-    }
-    return true;
-  }
-
-  // only if you use point
-  // ( geometry object that does not have volume in N-dimension ) as key_type
-  static rect_t merge(rect_t const& rect, vec_t const& v)
-  {
-    return { rect.min_.array().min(v.array()),
-             rect.max_.array().max(v.array()) };
-  }
-  static rect_t merge(rect_t const& rect, rect_t const& rect2)
-  {
-    return { rect.min_.array().min(rect2.min_.array()),
-             rect.max_.array().max(rect2.max_.array()) };
-  }
-
-  static area_type area(rect_t const& rect)
-  {
-    area_type ret = 1;
-    for (unsigned int i = 0; i < Size; ++i)
-    {
-      ret *= (rect.max_[i] - rect.min_[i]);
-    }
-    return ret;
-  }
-
-  // get scalar value of min_point in axis
-  static auto min_point(rect_t const& bound, int axis)
-  {
-    return bound.min_[axis];
-  }
-  // get scalar value of max_point in axis
-  static auto max_point(rect_t const& bound, int axis)
-  {
-    return bound.max_[axis];
-  }
-  // sum of all length of bound for all dimension
-  static auto margin(rect_t const& bound)
-  {
-    area_type ret = 0;
-    for (unsigned int i = 0; i < Size; ++i)
-    {
-      ret += bound.max_[i] - bound.min_[i];
-    }
-    return ret;
-  }
-
-  static rect_t intersection(rect_t const& rect1, rect_t const& rect2)
-  {
-    const vec_t ret_min = rect1.min_.array().max(rect2.min_.array());
-    return { ret_min,
-             rect1.max_.array().max(rect2.max_.array()).min(ret_min.array()) };
-  }
-
-  // distance between center of bounds
-  // used in reinserting
-  // returned value is used to sort the reinserted nodes,
-  // so no need to call sqrt() nor to be super-accurate
-  static auto distance_center(rect_t const& rect1, rect_t const& rect2)
-  {
-    return (rect1.min_ + rect1.max_ - rect2.min_ - rect2.max_).squaredNorm();
-  }
-
-  // ===================== MUST IMPLEMENT =====================
+  // return true if the query is satisfied
+  return value.first == query_key;
 };
-
-}
-}
-
-int main()
-{
-  using vec_t = Eigen::Vector<double, 3>;
-  using rect_t = my_rect_aabb<double, 3>;
-  // pass your AABB type (and vec_t for key_type) to template argument
-  using rtree_t = eh::rtree::RTree<rect_t, vec_t, int>;
-  //                                ^ AABB   ^ key  ^ data
-  //                                         <------------> value_type
-  rtree_t rtree;
-
-  rtree.insert({ vec_t { 0, 0, 0 }, 0 });
-  rtree.insert({ vec_t { 0.5, 0.5, 0.5 }, 1 });
-  rtree.insert({ vec_t { 0.7, 0.7, 0.7 }, 2 });
-  rtree.insert({ vec_t { 0.7, 1.3, 0.7 }, 3 });
-
-  rtree.search_inside(
-      rect_t { vec_t { 0.1, 0.1, 0.1 }, vec_t { 1.1, 1.1, 1.1 } },
-      [](rtree_t::value_type val)
-      {
-        std::cout << "Value Inside [0.1,0.1,0.1]x[1.1,1.1,1.1]: " << val.second
-                  << "\n";
-        // continue search
-        return false;
-      });
-
-  return 0;
-}
+rtree.search( geometry_filter, data_functor );
 ```
 
-## For usage in GPU ( CUDA, OpenCL, etc. )
-`RTree::flatten()` function is provided to convert RTree structure to linear array. From this dense array, you can easily load it to GPU memory.
+### RTree traversal
+#### With `RTree::iterator`
+User can fetch the iterators by `RTree::begin()` and `RTree::end()`.
+range-based for loop is also available.
+
+```cpp
+for(RTree::value_type value : rtree)
+{
+  // value.first is key, value.second is data
+}
+```
+here, `value_type` is `std::pair<KeyType, MappedType>`
+
+
+#### Directly accessing node pointer
+`RTree::root()` returns the root node pointer of the R-Tree.
+
+`RTree::leaf_level()` returns the level of the where leaf nodes are.
+User must be aware of the level of the node, and cast it to `leaf_type` if the node you are accessing is a leaf node.
+
+For non-leaf nodes,
+User can iterate over the children of the node by `for (RTree::node_type::value_type child : *node) { ... }`,
+where `value_type` is `std::pair<GeometryType, RTree::node_type*>`.
+
+For leaf nodes,
+User can iterate over the children of the leaves by `for (RTree::leaf_type::value_type child : *leaf) { ... }`,
+where `value_type` is `std::pair<KeyType, MappedType>`.
+
+### For read-only usage in GPU ( CUDA, OpenCL, etc. )
+`RTree::flatten()` and `RTree::flatten_move()` functions are provided to convert RTree structure to linear array. From this dense array, you can easily load it to GPU memory.
 
 ```cpp
 // Example usage of the flatten function
@@ -356,7 +254,7 @@ rtree_type::flatten_result_t flatten = rtree.flatten();
 // Now you can load 'flatten' into GPU memory for processing
 ```
 
-### flatten_result_t structure
+#### flatten_result_t structure
 
 The return type of `RTree::flatten()` is `flatten_result_t`, which contains all the necessary information to query RTree structure.
 ```cpp
@@ -388,7 +286,7 @@ struct flatten_result_t
  - `data`: A vector containing the actual data stored in the leaf nodes.
 
 
-### flatten_node_t structure
+#### flatten_node_t structure
 ```cpp
 // node information
 struct flatten_node_t
@@ -421,70 +319,3 @@ struct flatten_node_t
  - `parent`: The index of the parent node in the nodes array.
 
  The children of a node can be retrieved using the offset and size values. For leaf nodes (where level == leaf_level), the children array points to indices in the data array. For non-leaf nodes (where level < leaf_level), the children array points to indices in the nodes array.
-
-
-
-## Visualization Examples
-
-### R-Tree structure visualization
-
-![](example/node_diagram.png)
-
-This image was created with the assistance of ChatGPT, an AI language model developed by OpenAI.
-
-The image is a diagram that visually represents the structure of an RTree, which is used for efficiently managing and searching spatial data. The diagram uses a Black and White theme and displays the following structure:
-
- - **root node (Level 0):**
-
-    The topmost node, displayed in black.
- - **intermediate nodes (Level 1):**
-
-    Child nodes of the root node, shown in dark gray. These nodes have leaf nodes as their children.
- - **leaf nodes (leaf_level):**
-
-    Nodes containing data nodes, shown in light gray. Each leaf node has actual data items as its children.
- - **data nodes:**
-
-    Children of the leaf nodes representing the actual data. They are shown in light gray in the Black and White theme.
-bounding box information:
-
-Each edge connecting the nodes includes bounding box information displayed as text. This represents the spatial relationship between nodes.
-
-
-### 1-dimensional R-Tree structure visualization
-`example/visualize_1d`
-
-![](example/visualize_1d/images/N300Quadratic.png)
-
-The x-axis illustrates different levels within the R-tree, and the y-axis displays the size of bounding boxes (in one dimension) for each node.
-
-On the far right, there are green dots representing input points (N = 300). These points are generated from a normal distribution with a mean ($\mu$) of 0 and a standard deviation ($\sigma$) of 5.
-
-
-### 2-dimensional R*-Tree structure visualization
-`example/visualize_2d`
-
-![](example/visualize_2d/images/N1000Rstar.png)
-
-The bounding boxes on the graph indicate the coverage range of each node. Additionally, the thickness and color of these bounding boxes are about their respective levels. 'blue', 'orange', and 'black' are used to represent levels 2, 1, and 0, respectively.
-
-Purple dots represent input points (N = 1000), generated from a normal distribution with an origin of (0,0), a mean ($\mu$) of 0, and a standard deviation ($\sigma$) of 5.
-
-Both the Splitting scheme and reinsertion algorithm applied.
-
-### 3-dimensional R*-Tree structure visualization
-`example/visualize_3d`
-
-![](example/visualize_3d/N250.png)
-
-N = 250 points are generated from a normal distribution.
-
-
-
-
-
-### Spatial Indexing and Raycasting
-
-[This Project](https://github.com/ehwan/RayTracing)
-
-![](example/teapot_diffusive_reflection.png)

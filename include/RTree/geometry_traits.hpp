@@ -1,6 +1,7 @@
 #pragma once
 
-#include "global.hpp"
+#include "RTree/global.hpp"
+#include <algorithm>
 
 namespace eh
 {
@@ -12,67 +13,169 @@ namespace rtree
 template <typename GeometryType>
 struct geometry_traits
 {
-  // ===================== MUST IMPLEMENT =====================
   // dimension
-  constexpr static int DIM = 3;
+  constexpr static int DIM = 1;
 
-  using area_type = typename GeometryType::area_type;
-
-  template <typename PointOrBoundType>
-  static bool is_inside(GeometryType const& bound, PointOrBoundType const& p)
-  {
-    return bound.is_inside(p);
-  }
-
-  template <typename PointOrBoundType>
-  static bool is_overlap(GeometryType const& bound, PointOrBoundType const& p)
-  {
-    return bound.is_overlap(p);
-  }
-
-  template <typename PointOrBoundType>
-  static GeometryType merge(GeometryType& bound, PointOrBoundType const& p)
-  {
-    return bound.merged(p);
-  }
-  static area_type area(GeometryType const& bound)
-  {
-    return bound.area();
-  }
+  using scalar_type = GeometryType;
 
   // get scalar value of min_point in axis
-  static auto min_point(GeometryType const& bound, int axis)
+  static scalar_type min_point(GeometryType const& g, int axis)
   {
-    return bound.min_point(axis);
+    return g;
   }
   // get scalar value of max_point in axis
-  static auto max_point(GeometryType const& bound, int axis)
+  static scalar_type max_point(GeometryType const& g, int axis)
   {
-    return bound.max_point(axis);
+    return g;
   }
-  // sum of all length of bound for all dimension
-  static auto margin(GeometryType const& bound)
+  // set scalar value of min_point in axis, only for geometry_type
+  static void set_min_point(GeometryType& g, int axis, scalar_type value)
   {
-    return bound.margin();
+    g = value;
   }
-  template <typename PointOrBoundType>
-  static GeometryType intersection(GeometryType const& bound,
-                                   PointOrBoundType const& p)
+  // set scalar value of max_point in axis, only for geometry_type
+  static void set_max_point(GeometryType& g, int axis, scalar_type value)
   {
-    return bound.intersection(p);
+    g = value;
   }
-
-  // distance between center of bounds
-  // used in reinserting
-  // returned value is used to sort the reinserted nodes,
-  // so no need to call sqrt() nor to be super-accurate
-  static auto distance_center(GeometryType const& bound1,
-                              GeometryType const& bound2)
-  {
-    return bound1.distance_center(bound2);
-  }
-  // ===================== MUST IMPLEMENT =====================
 };
+
+namespace helper
+{
+template <typename GeometryType>
+typename geometry_traits<GeometryType>::scalar_type
+min_point(GeometryType const& g, int axis)
+{
+  EH_RTREE_ASSERT_SILENT(axis >= 0
+                         && axis < geometry_traits<GeometryType>::DIM);
+  return geometry_traits<GeometryType>::min_point(g, axis);
+}
+template <typename GeometryType>
+typename geometry_traits<GeometryType>::scalar_type
+max_point(GeometryType const& g, int axis)
+{
+  EH_RTREE_ASSERT_SILENT(axis >= 0
+                         && axis < geometry_traits<GeometryType>::DIM);
+  return geometry_traits<GeometryType>::max_point(g, axis);
+}
+template <typename GeometryType>
+void set_min_point(
+    GeometryType& g,
+    int axis,
+    typename geometry_traits<GeometryType>::scalar_type const& value)
+{
+  EH_RTREE_ASSERT_SILENT(axis >= 0
+                         && axis < geometry_traits<GeometryType>::DIM);
+  return geometry_traits<GeometryType>::set_min_point(g, axis, value);
+}
+template <typename GeometryType>
+void set_max_point(
+    GeometryType& g,
+    int axis,
+    typename geometry_traits<GeometryType>::scalar_type const& value)
+{
+  EH_RTREE_ASSERT_SILENT(axis >= 0
+                         && axis < geometry_traits<GeometryType>::DIM);
+  return geometry_traits<GeometryType>::set_max_point(g, axis, value);
+}
+
+// enlarge g1 to cover both g1 and g2
+template <typename Geom1, typename Geom2>
+void enlarge_to(Geom1& g1, Geom2 const& g2)
+{
+  static_assert(geometry_traits<Geom1>::DIM == geometry_traits<Geom2>::DIM,
+                "Dimension not match");
+  for (int i = 0; i < geometry_traits<Geom1>::DIM; ++i)
+  {
+    set_min_point(g1, i, std::min(min_point(g1, i), min_point(g2, i)));
+    set_max_point(g1, i, std::max(max_point(g1, i), max_point(g2, i)));
+  }
+}
+
+// area of enlarged bound
+template <typename Geom1, typename Geom2>
+typename geometry_traits<Geom1>::scalar_type enlarged_area(Geom1 const& g1,
+                                                           Geom2 const& g2)
+{
+  static_assert(geometry_traits<Geom1>::DIM == geometry_traits<Geom2>::DIM,
+                "Dimension not match");
+
+  typename geometry_traits<Geom1>::scalar_type ret = 1;
+  for (int i = 0; i < geometry_traits<Geom1>::DIM; ++i)
+  {
+    ret *= std::max(max_point(g1, i), max_point(g2, i))
+           - std::min(min_point(g1, i), min_point(g2, i));
+  }
+  return ret;
+}
+// area of intersection between two bounds
+template <typename Geom1, typename Geom2>
+typename geometry_traits<Geom1>::scalar_type intersection_area(Geom1 const& g1,
+                                                               Geom2 const& g2)
+{
+  static_assert(geometry_traits<Geom1>::DIM == geometry_traits<Geom2>::DIM,
+                "Dimension not match");
+  typename geometry_traits<Geom1>::scalar_type ret = 1;
+  for (int i = 0; i < geometry_traits<Geom1>::DIM; ++i)
+  {
+    if (min_point(g1, i) > max_point(g2, i)
+        || max_point(g1, i) < min_point(g2, i))
+    {
+      return 0;
+    }
+
+    ret *= std::min(max_point(g1, i), max_point(g2, i))
+           - std::max(min_point(g1, i), min_point(g2, i));
+  }
+  return ret;
+}
+
+// area of bound
+template <typename GeometryType>
+typename geometry_traits<GeometryType>::scalar_type area(GeometryType const& g)
+{
+  typename geometry_traits<GeometryType>::scalar_type ret = 1;
+  for (int i = 0; i < geometry_traits<GeometryType>::DIM; ++i)
+  {
+    ret *= max_point(g, i) - min_point(g, i);
+  }
+  return ret;
+}
+// sum of all length of bound for all dimension
+template <typename GeometryType>
+typename geometry_traits<GeometryType>::scalar_type
+margin(GeometryType const& g)
+{
+  typename geometry_traits<GeometryType>::scalar_type ret = 0;
+  for (int i = 0; i < geometry_traits<GeometryType>::DIM; ++i)
+  {
+    ret += max_point(g, i) - min_point(g, i);
+  }
+  return ret;
+}
+
+// distance between center of bounds
+// used in reinserting
+// returned value is used to sort the reinserted nodes,
+// so no need to call sqrt() nor to be super-accurate
+template <typename Geom1, typename Geom2>
+typename geometry_traits<Geom1>::scalar_type distance_center(Geom1 const& g1,
+                                                             Geom2 const& g2)
+{
+  static_assert(geometry_traits<Geom1>::DIM == geometry_traits<Geom2>::DIM,
+                "Dimension not match");
+  typename geometry_traits<Geom1>::scalar_type ret = 0;
+  for (int i = 0; i < geometry_traits<Geom1>::DIM; ++i)
+  {
+    typename geometry_traits<Geom1>::scalar_type diff
+        = (max_point(g1, i) + min_point(g1, i))
+          - (max_point(g2, i) + min_point(g2, i));
+    ret += diff * diff;
+  }
+  return ret;
+}
+
+}
 
 }
 } // namespace eh rtree

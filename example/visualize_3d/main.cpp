@@ -8,7 +8,7 @@ int main(int argc, char** argv)
 {
   using point_type = eh::rtree::point_t<double, 3>;
   using aabb_type = eh::rtree::aabb_t<point_type>;
-  using rtree_type = eh::rtree::RTree<aabb_type, point_type, int, 6, 12>;
+  using rtree_type = eh::rtree::RTree<aabb_type, point_type, int>;
 
   std::mt19937 mt_engine { std::random_device {}() };
 
@@ -47,14 +47,14 @@ int main(int argc, char** argv)
   for (int level = 0; level < rtree.leaf_level(); ++level)
   {
     int count = 0;
-    for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+    for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
     {
       rtree_type::node_type* node = *ni;
       count += node->size();
     }
     output << count;
 
-    for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+    for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
     {
       rtree_type::node_type* node = *ni;
 

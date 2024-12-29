@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <utility>
 
 #include "global.hpp"
@@ -87,12 +86,12 @@ public:
   }
   value_type& operator[](size_type i)
   {
-    assert(i < size());
+    EH_RTREE_ASSERT_SILENT(i < size());
     return at(i);
   }
   value_type const& operator[](size_type i) const
   {
-    assert(i < size());
+    EH_RTREE_ASSERT_SILENT(i < size());
     return at(i);
   }
   void clear()
@@ -127,40 +126,40 @@ public:
 
   value_type& front()
   {
-    assert(size_ > 0);
+    EH_RTREE_ASSERT_SILENT(size_ > 0);
     return at(0);
   }
   value_type const& front() const
   {
-    assert(size_ > 0);
+    EH_RTREE_ASSERT_SILENT(size_ > 0);
     return at(0);
   }
   value_type& back()
   {
-    assert(size_ > 0);
+    EH_RTREE_ASSERT_SILENT(size_ > 0);
     return at(size_ - 1);
   }
   value_type const& back() const
   {
-    assert(size_ > 0);
+    EH_RTREE_ASSERT_SILENT(size_ > 0);
     return at(size_ - 1);
   }
   void push_back(value_type value)
   {
-    assert(size_ < N);
+    EH_RTREE_ASSERT_SILENT(size_ < N);
     new (&at(size_)) value_type(std::move(value));
     ++size_;
   }
   template <typename... Ts>
   void emplace_back(Ts&&... args)
   {
-    assert(size_ < N);
+    EH_RTREE_ASSERT_SILENT(size_ < N);
     new (&at(size_)) value_type(std::forward<Ts>(args)...);
     ++size_;
   }
   void pop_back()
   {
-    assert(size_ > 0);
+    EH_RTREE_ASSERT_SILENT(size_ > 0);
     back().~value_type();
     --size_;
   }

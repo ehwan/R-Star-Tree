@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <cassert>
 #include <limits>
 #include <memory>
 #include <type_traits>
@@ -13,7 +12,6 @@
 #include "iterator.hpp"
 #include "static_node.hpp"
 
-#include "quadratic_split.hpp"
 #include "rstar_split.hpp"
 
 namespace eh
@@ -21,57 +19,72 @@ namespace eh
 namespace rtree
 {
 
+struct DefaultConfig
+{
+  /// minimum number of entries in a node
+  constexpr static size_type MIN_ENTRIES = 4;
+  /// maximum number of entries in a node
+  constexpr static size_type MAX_ENTRIES = 8;
+
+  /// number of entries to be reinserted when node overflow occurs
+  constexpr static size_type REINSERT_COUNT = 3;
+
+  // Node Overflow Splitting Scheme
+  using split_algorithm = RStarSplit;
+  // using split_algorithm = QuadraticSplit;
+};
+
 template <typename GeometryType, // bounding box representation
           typename KeyType, // key type, either bounding box or point
           typename MappedType, // mapped type, user defined
-          size_type MinEntry = 8u, // m
-          size_type MaxEntry = 16u, // M
+          typename Config = DefaultConfig, // other configurations
           template <typename _T> class Allocator = std::allocator // allocator
           >
 class RTree
 {
-  // Node Overflow Splitting Scheme
-  // using splitter_t = quadratic_split_t<RTree>;
-  using splitter_t = rstar_split_t<RTree>;
-
 public:
+  using size_type = ::eh::rtree::size_type;
+
+  using geometry_type = GeometryType;
+  using key_type = KeyType;
+  using mapped_type = MappedType;
+  using value_type = std::pair<key_type, mapped_type>;
+  using traits = geometry_traits<geometry_type>;
+
+  using scalar_type = typename geometry_traits<geometry_type>::scalar_type;
+
+  // M
+  constexpr static size_type MAX_ENTRIES = Config::MAX_ENTRIES;
+  // m <= M/2
+  constexpr static size_type MIN_ENTRIES = Config::MIN_ENTRIES;
+  static_assert(MIN_ENTRIES <= MAX_ENTRIES / 2, "Invalid MIN_ENTRIES count");
+  static_assert(MIN_ENTRIES >= 1, "Invalid MIN_ENTRIES count");
+
+  static_assert(MAX_ENTRIES + 1 - Config::REINSERT_COUNT >= MIN_ENTRIES,
+                "Invalid REINSERT_COUNT count");
+  static_assert(MAX_ENTRIES + 1 - Config::REINSERT_COUNT <= MAX_ENTRIES,
+                "Invalid REINSERT_COUNT count");
+
   // using stack memory for MaxEntries child nodes. instead of std::vector
   using node_base_type = static_node_base_t<GeometryType,
                                             KeyType,
                                             MappedType,
-                                            MinEntry,
-                                            MaxEntry>;
-  using node_type
-      = static_node_t<GeometryType, KeyType, MappedType, MinEntry, MaxEntry>;
+                                            MIN_ENTRIES,
+                                            MAX_ENTRIES>;
+
+  using node_type = static_node_t<GeometryType,
+                                  KeyType,
+                                  MappedType,
+                                  MIN_ENTRIES,
+                                  MAX_ENTRIES>;
   using leaf_type = static_leaf_node_t<GeometryType,
                                        KeyType,
                                        MappedType,
-                                       MinEntry,
-                                       MaxEntry>;
+                                       MIN_ENTRIES,
+                                       MAX_ENTRIES>;
 
-  using size_type = ::eh::rtree::size_type;
-
-  using geometry_type = GeometryType;
-  using traits = geometry_traits<GeometryType>;
-  using key_type = KeyType;
-  using mapped_type = MappedType;
-  using value_type = std::pair<key_type, mapped_type>;
-
-  template <typename __T>
-  using allocator_type = Allocator<__T>;
-
-  // type for area
-  using area_type = typename geometry_traits<geometry_type>::area_type;
-  constexpr static area_type MAX_AREA = std::numeric_limits<area_type>::max();
-  constexpr static area_type LOWEST_AREA
-      = std::numeric_limits<area_type>::lowest();
-
-  // M
-  constexpr static size_type MAX_ENTRIES = MaxEntry;
-  // m <= M/2
-  constexpr static size_type MIN_ENTRIES = MinEntry;
-  static_assert(MIN_ENTRIES <= MAX_ENTRIES / 2, "Invalid MIN_ENTRIES count");
-  static_assert(MIN_ENTRIES >= 1, "Invalid MIN_ENTRIES count");
+  using node_allocator_type = Allocator<node_type>;
+  using leaf_allocator_type = Allocator<leaf_type>;
 
   using iterator = iterator_t<leaf_type>;
   using const_iterator = iterator_t<leaf_type const>;
@@ -82,35 +95,12 @@ public:
   using leaf_iterator = node_iterator_t<leaf_type>;
   using const_leaf_iterator = node_iterator_t<leaf_type const>;
 
-  template <typename TA, typename TB>
-  static bool is_overlap(TA const& a, TB const& b)
-  {
-    return traits::is_overlap(a, b);
-  }
-  template <typename TargetBoundary, typename QueryPoint>
-  static bool is_inside(TargetBoundary const& target, QueryPoint const& query)
-  {
-    return traits::is_inside(target, query);
-  }
-
 protected:
   node_base_type* _root = nullptr;
   int _leaf_level = 0;
 
-  /*
-  ReInsertion Scheme
-  When node overflow occurs
-  (i.e, trying to add more than MAX_ENTRIES into single node),
-  the R*-Tree uses a reinsertion strategy to redistribute the
-  entries in the overflowing node.
-
-  `_reinsert_nodes` child nodes of the overflowing node are removed and
-  reinserted
-  */
-  size_type _reinsert_nodes = 0;
-
-  allocator_type<node_type> _node_allocator;
-  allocator_type<leaf_type> _leaf_allocator;
+  node_allocator_type _node_allocator;
+  leaf_allocator_type _leaf_allocator;
 
   void delete_if()
   {
@@ -147,7 +137,7 @@ protected:
   // search for appropriate node in target_level to insert bound
   node_type* choose_insert_target(geometry_type const& bound, int target_level)
   {
-    assert(target_level <= _leaf_level);
+    EH_RTREE_ASSERT_SILENT(target_level <= _leaf_level);
     /*
     CLl. [Initialize.]
     Set N to be the root node.
@@ -167,13 +157,13 @@ protected:
     node_type* n = _root->as_node();
     for (int level = 0; level < target_level; ++level)
     {
-      area_type min_area_enlarge = MAX_AREA;
+      scalar_type min_area_enlarge = std::numeric_limits<scalar_type>::max();
       typename node_type::iterator chosen = n->end();
 
       for (typename node_type::iterator ci = n->begin(); ci != n->end(); ++ci)
       {
-        const auto area_enlarge = traits::area(traits::merge(ci->first, bound))
-                                  - traits::area(ci->first);
+        const auto area_enlarge
+            = helper::enlarged_area(ci->first, bound) - helper::area(ci->first);
         if (area_enlarge < min_area_enlarge)
         {
           min_area_enlarge = area_enlarge;
@@ -181,34 +171,16 @@ protected:
         }
         else if (area_enlarge == min_area_enlarge)
         {
-          if (traits::area(ci->first) < traits::area(chosen->first))
+          if (helper::area(ci->first) < helper::area(chosen->first))
           {
             chosen = ci;
           }
         }
       }
-      assert(chosen != n->end());
+      EH_RTREE_ASSERT_SILENT(chosen != n->end());
       n = chosen->second->as_node();
     }
     return n;
-  }
-  // adjust bound from node `N` to root recursively
-  void broadcast_new_bound(node_type* N)
-  {
-    while (N->parent())
-    {
-      N->entry().first = N->calculate_bound();
-      N = N->parent();
-    }
-  }
-  // adjust bound from node `leaf` to root recursively
-  void broadcast_new_bound(leaf_type* leaf)
-  {
-    if (leaf->parent())
-    {
-      leaf->entry().first = leaf->calculate_bound();
-      broadcast_new_bound(leaf->parent());
-    }
   }
 
   // insert child to given parent
@@ -223,8 +195,8 @@ protected:
       // overflow treatment
       if (reinsert && parent->as_node() != root()
           && parent->parent()->size() > 1
-          && MAX_ENTRIES + 1 - _reinsert_nodes >= MIN_ENTRIES
-          && MAX_ENTRIES + 1 - _reinsert_nodes <= MAX_ENTRIES)
+          && MAX_ENTRIES + 1 - Config::REINSERT_COUNT >= MIN_ENTRIES
+          && MAX_ENTRIES + 1 - Config::REINSERT_COUNT <= MAX_ENTRIES)
       {
         this->reinsert(parent, std::move(new_child));
       }
@@ -237,7 +209,7 @@ protected:
     {
       parent->insert(std::move(new_child));
     }
-    broadcast_new_bound(parent);
+    rebound(parent);
 
     // split occured
     // insert new node pair to parent
@@ -278,10 +250,20 @@ protected:
   {
     NodeType* pair = construct_node<NodeType>();
     // @TODO another split scheme
-    splitter_t spliter;
-    spliter(node, std::move(child), pair);
+    Config::split_algorithm::split(node, std::move(child), pair);
     return pair;
   }
+
+  /*
+  ReInsertion Scheme
+  When node overflow occurs
+  (i.e, trying to add more than MAX_ENTRIES into single node),
+  the R*-Tree uses a reinsertion strategy to redistribute the
+  entries in the overflowing node.
+
+  `_reinsert_nodes` child nodes of the overflowing node are removed and
+  reinserted
+  */
 
   // 'node' contains MAX_ENTRIES nodes;
   // trying to add additional child 'child'
@@ -304,10 +286,9 @@ protected:
 
     const int node_realtive_level_from_leaf
         = leaf_level() - node->level_recursive();
-    const size_type reinsert_count = _reinsert_nodes;
 
     geometry_type node_bound = node->calculate_bound();
-    node_bound = traits::merge(node_bound, child.first);
+    helper::enlarge_to(node_bound, child.first);
     std::vector<typename node_type::value_type> children;
     children.reserve(MAX_ENTRIES + 1);
     for (typename node_type::value_type& c : *node)
@@ -315,22 +296,23 @@ protected:
       children.emplace_back(std::move(c));
     }
     children.emplace_back(std::move(child));
-    assert(children.size() == MAX_ENTRIES + 1);
+    EH_RTREE_ASSERT_SILENT(children.size() == MAX_ENTRIES + 1);
     node->clear();
 
     std::sort(children.begin(), children.end(),
               [&](typename node_type::value_type const& a,
                   typename node_type::value_type const& b)
               {
-                return traits::distance_center(node_bound, a.first)
-                       < traits::distance_center(node_bound, b.first);
+                return helper::distance_center(node_bound, a.first)
+                       < helper::distance_center(node_bound, b.first);
               });
-    for (size_type i = 0; i < MAX_ENTRIES + 1 - reinsert_count; ++i)
+    for (size_type i = 0; i < MAX_ENTRIES + 1 - Config::REINSERT_COUNT; ++i)
     {
       node->insert(std::move(children[i]));
     }
-    broadcast_new_bound(node);
-    for (size_type i = MAX_ENTRIES + 1 - reinsert_count; i <= MAX_ENTRIES; ++i)
+    rebound(node);
+    for (size_type i = MAX_ENTRIES + 1 - Config::REINSERT_COUNT;
+         i <= MAX_ENTRIES; ++i)
     {
       typename node_type::value_type& c = children[i];
       node_type* chosen = choose_insert_target(
@@ -340,10 +322,8 @@ protected:
   }
   void reinsert(leaf_type* node, typename leaf_type::value_type child)
   {
-    const size_type reinsert_count = _reinsert_nodes;
-
     geometry_type node_bound = node->calculate_bound();
-    node_bound = traits::merge(node_bound, child.first);
+    helper::enlarge_to(node_bound, child.first);
     std::vector<typename leaf_type::value_type> children;
     children.reserve(MAX_ENTRIES + 1);
     for (typename leaf_type::value_type& c : *node)
@@ -357,15 +337,16 @@ protected:
               [&](typename leaf_type::value_type const& a,
                   typename leaf_type::value_type const& b)
               {
-                return traits::distance_center(node_bound, a.first)
-                       < traits::distance_center(node_bound, b.first);
+                return helper::distance_center(node_bound, a.first)
+                       < helper::distance_center(node_bound, b.first);
               });
-    for (size_type i = 0; i < MAX_ENTRIES + 1 - reinsert_count; ++i)
+    for (size_type i = 0; i < MAX_ENTRIES + 1 - Config::REINSERT_COUNT; ++i)
     {
       node->insert(std::move(children[i]));
     }
-    broadcast_new_bound(node);
-    for (size_type i = MAX_ENTRIES + 1 - reinsert_count; i <= MAX_ENTRIES; ++i)
+    rebound(node);
+    for (size_type i = MAX_ENTRIES + 1 - Config::REINSERT_COUNT;
+         i <= MAX_ENTRIES; ++i)
     {
       typename leaf_type::value_type& c = children[i];
       leaf_type* chosen
@@ -375,14 +356,6 @@ protected:
   }
 
 public:
-  // set the number of reinserted nodes
-  void reinsert_nodes(size_type count)
-  {
-    // max >= max+1-count >= min
-    // count >= 1
-    // count <= max - min + 1
-    _reinsert_nodes = std::min(count, MAX_ENTRIES - MIN_ENTRIES + 1);
-  }
   void insert(value_type new_val)
   {
     leaf_type* chosen
@@ -501,17 +474,39 @@ public:
     init_root();
   }
 
+  // adjust bound from node `N` to root recursively
+  void rebound(node_type* N)
+  {
+    while (N->parent())
+    {
+      N->entry().first = N->calculate_bound();
+      N = N->parent();
+    }
+  }
+  // adjust bound from node `leaf` to root recursively
+  void rebound(leaf_type* leaf)
+  {
+    if (leaf->parent())
+    {
+      leaf->entry().first = leaf->calculate_bound();
+      rebound(leaf->parent());
+    }
+  }
+  // adjust bound from the iterator to root recursively
+  void rebound(iterator pos)
+  {
+    rebound(pos._leaf);
+  }
+
   RTree()
   {
     init_root();
-    reinsert_nodes(static_cast<size_type>(0.3 * MAX_ENTRIES));
   }
 
   // @TODO
   // mapped_type copy-assignable
   RTree(RTree const& rhs)
   {
-    _reinsert_nodes = rhs._reinsert_nodes;
     if (rhs._leaf_level == 0)
     {
       _root = rhs._root->as_leaf()->clone_recursive(*this);
@@ -521,6 +516,43 @@ public:
     {
       _root = rhs._root->as_node()->clone_recursive(rhs._leaf_level, *this);
       _leaf_level = rhs._leaf_level;
+    }
+  }
+  template <typename Iterator>
+  RTree(Iterator begin, Iterator end)
+  {
+    init_root();
+    for (Iterator it = begin; it != end; ++it)
+    {
+      insert(*it);
+    }
+  }
+
+  template <typename GeometryType_,
+            typename KeyType_,
+            typename MappedType_,
+            typename Config_,
+            template <typename _T>
+            class Allocator_>
+  RTree(RTree<GeometryType_, KeyType_, MappedType_, Config_, Allocator_> const&
+            rhs)
+  {
+    for (value_type const& v : rhs)
+    {
+      insert(v);
+    }
+  }
+  template <typename GeometryType_,
+            typename KeyType_,
+            typename MappedType_,
+            typename Config_,
+            template <typename _T>
+            class Allocator_>
+  RTree(RTree<GeometryType_, KeyType_, MappedType_, Config_, Allocator_>&& rhs)
+  {
+    for (value_type& v : rhs)
+    {
+      insert(std::move(v));
     }
   }
   // @TODO
@@ -538,12 +570,10 @@ public:
       _root = rhs._root->as_node()->clone_recursive(rhs._leaf_level, *this);
       _leaf_level = rhs._leaf_level;
     }
-    _reinsert_nodes = rhs._reinsert_nodes;
     return *this;
   }
   RTree(RTree&& rhs)
   {
-    _reinsert_nodes = rhs._reinsert_nodes;
     _root = rhs._root;
     _leaf_level = rhs._leaf_level;
     rhs.set_null();
@@ -554,9 +584,41 @@ public:
     delete_if();
     _root = rhs._root;
     _leaf_level = rhs._leaf_level;
-    _reinsert_nodes = rhs._reinsert_nodes;
     rhs.set_null();
     rhs.init_root();
+    return *this;
+  }
+  template <typename GeometryType_,
+            typename KeyType_,
+            typename MappedType_,
+            typename Config_,
+            template <typename _T>
+            class Allocator_>
+  RTree& operator=(
+      RTree<GeometryType_, KeyType_, MappedType_, Config_, Allocator_> const&
+          rhs)
+  {
+    clear();
+    for (value_type const& v : rhs)
+    {
+      insert(v);
+    }
+    return *this;
+  }
+  template <typename GeometryType_,
+            typename KeyType_,
+            typename MappedType_,
+            typename Config_,
+            template <typename _T>
+            class Allocator_>
+  RTree& operator=(
+      RTree<GeometryType_, KeyType_, MappedType_, Config_, Allocator_>&& rhs)
+  {
+    clear();
+    for (value_type& v : rhs)
+    {
+      insert(std::move(v));
+    }
     return *this;
   }
   ~RTree()
@@ -564,6 +626,7 @@ public:
     delete_if();
   }
 
+  /// fetch iterator for the elements in the tree
   iterator begin()
   {
     node_type* n = _root->as_node();
@@ -577,6 +640,7 @@ public:
     }
     return { &n->as_leaf()->at(0), n->as_leaf() };
   }
+  /// fetch iterator for the elements in the tree
   const_iterator cbegin() const
   {
     node_type const* n = _root->as_node();
@@ -590,26 +654,34 @@ public:
     }
     return { &n->as_leaf()->at(0), n->as_leaf() };
   }
+  /// fetch iterator for the elements in the tree
   const_iterator begin() const
   {
     return cbegin();
   }
 
+  /// fetch iterator for the elements in the tree
   iterator end()
   {
     return {};
   }
+  /// fetch iterator for the elements in the tree
   const_iterator cend() const
   {
     return {};
   }
+  /// fetch iterator for the elements in the tree
   const_iterator end() const
   {
     return {};
   }
 
-  node_iterator begin(int level)
+  /// fetch iterator for the non-leaf nodes on the given level
+  node_iterator node_begin(int level)
   {
+    EH_RTREE_ASSERT(level >= 0, "level must be greater than or equal to 0");
+    EH_RTREE_ASSERT(level < _leaf_level,
+                    "level must be pointing non-leaf node");
     if (level > _leaf_level)
     {
       return {};
@@ -621,8 +693,12 @@ public:
     }
     return { n };
   }
-  const_node_iterator begin(int level) const
+  /// fetch iterator for the non-leaf nodes on the given level
+  const_node_iterator node_begin(int level) const
   {
+    EH_RTREE_ASSERT(level >= 0, "level must be greater than or equal to 0");
+    EH_RTREE_ASSERT(level < _leaf_level,
+                    "level must be pointing non-leaf node");
     if (level > _leaf_level)
     {
       return {};
@@ -634,24 +710,41 @@ public:
     }
     return { n };
   }
-  const_node_iterator cbegin(int level) const
+  /// fetch iterator for the non-leaf nodes on the given level
+  const_node_iterator node_cbegin(int level) const
   {
+    EH_RTREE_ASSERT(level >= 0, "level must be greater than or equal to 0");
+    EH_RTREE_ASSERT(level < _leaf_level,
+                    "level must be pointing non-leaf node");
     return begin(level);
   }
 
-  node_iterator end(int level)
+  /// fetch iterator for the non-leaf nodes on the given level
+  node_iterator node_end(int level)
   {
+    EH_RTREE_ASSERT(level >= 0, "level must be greater than or equal to 0");
+    EH_RTREE_ASSERT(level < _leaf_level,
+                    "level must be pointing non-leaf node");
     return {};
   }
-  const_node_iterator end(int level) const
+  /// fetch iterator for the non-leaf nodes on the given level
+  const_node_iterator node_end(int level) const
   {
+    EH_RTREE_ASSERT(level >= 0, "level must be greater than or equal to 0");
+    EH_RTREE_ASSERT(level < _leaf_level,
+                    "level must be pointing non-leaf node");
     return {};
   }
-  const_node_iterator cend(int level) const
+  /// fetch iterator for the non-leaf nodes on the given level
+  const_node_iterator node_cend(int level) const
   {
+    EH_RTREE_ASSERT(level >= 0, "level must be greater than or equal to 0");
+    EH_RTREE_ASSERT(level < _leaf_level,
+                    "level must be pointing non-leaf node");
     return {};
   }
 
+  /// fetch iterator for the leaf nodes
   leaf_iterator leaf_begin()
   {
     node_type* n = _root->as_node();
@@ -661,6 +754,7 @@ public:
     }
     return { n->as_leaf() };
   }
+  /// fetch iterator for the leaf nodes
   const_leaf_iterator leaf_begin() const
   {
     node_type const* n = _root->as_node();
@@ -670,42 +764,49 @@ public:
     }
     return { n->as_leaf() };
   }
+  /// fetch iterator for the leaf nodes
   const_leaf_iterator leaf_cbegin() const
   {
     return leaf_begin();
   }
+  /// fetch iterator for the leaf nodes
   leaf_iterator leaf_end()
   {
     return {};
   }
+  /// fetch iterator for the leaf nodes
   const_leaf_iterator leaf_end() const
   {
     return {};
   }
+  /// fetch iterator for the leaf nodes
   const_leaf_iterator leaf_cend() const
   {
     return {};
   }
 
+  /// get the root node
   node_type* root()
   {
     return _root->as_node();
   }
+  /// get the root node
   node_type const* root() const
   {
     return _root->as_node();
   }
 
+  /// get the level where leaf nodes are
   int leaf_level() const
   {
     return _leaf_level;
   }
 
-  allocator_type<node_type>& node_allocator()
+  node_allocator_type& node_allocator()
   {
     return _node_allocator;
   }
-  allocator_type<leaf_type>& leaf_allocator()
+  leaf_allocator_type& leaf_allocator()
   {
     return _leaf_allocator;
   }
@@ -715,180 +816,55 @@ public:
                           NodeType*>::type
   construct_node()
   {
-    return new (node_allocator().allocate(1)) NodeType;
+    return new (node_allocator_type().allocate(1)) NodeType;
   }
   template <typename NodeType>
   typename std::enable_if<std::is_same<NodeType, leaf_type>::value,
                           NodeType*>::type
   construct_node()
   {
-    return new (leaf_allocator().allocate(1)) NodeType;
+    return new (leaf_allocator_type().allocate(1)) NodeType;
   }
   void destroy_node(node_type* node)
   {
     node->~node_type();
-    node_allocator().deallocate(node, 1);
+    node_allocator_type().deallocate(node, 1);
   }
   void destroy_node(leaf_type* node)
   {
     node->~leaf_type();
-    leaf_allocator().deallocate(node, 1);
-  }
-
-protected:
-  template <typename _NodeType, typename _GeometryType, typename Functor>
-  static bool search_overlap_wrapper(_NodeType* node,
-                                     int leaf,
-                                     _GeometryType const& search_range,
-                                     Functor functor)
-  {
-    if (leaf == 0)
-    {
-      if (search_overlap_leaf_wrapper(node->as_leaf(), search_range, functor))
-      {
-        return true;
-      }
-    }
-    else
-    {
-      for (typename _NodeType::value_type& c : *node)
-      {
-        if (traits::is_overlap(c.first, search_range) == false)
-        {
-          continue;
-        }
-        if (search_overlap_wrapper(c.second->as_node(), leaf - 1, search_range,
-                                   functor))
-        {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  template <typename _NodeType, typename _GeometryType, typename Functor>
-  static bool search_inside_wrapper(_NodeType* node,
-                                    int leaf,
-                                    _GeometryType const& search_range,
-                                    Functor functor)
-  {
-    if (leaf == 0)
-    {
-      if (search_inside_leaf_wrapper(node->as_leaf(), search_range, functor))
-      {
-        return true;
-      }
-    }
-    else
-    {
-      for (typename _NodeType::value_type& c : *node)
-      {
-        if (traits::is_overlap(c.first, search_range) == false)
-        {
-          continue;
-        }
-        if (search_inside_wrapper(c.second->as_node(), leaf - 1, search_range,
-                                  functor))
-        {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-  template <typename _LeafType, typename _GeometryType, typename Functor>
-  static bool search_overlap_leaf_wrapper(_LeafType* node,
-                                          _GeometryType const& search_range,
-                                          Functor functor)
-  {
-    for (typename _LeafType::value_type& c : *node)
-    {
-      if (traits::is_overlap(c.first, search_range) == false)
-      {
-        continue;
-      }
-      if (functor(c))
-      {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  template <typename _LeafType, typename _GeometryType, typename Functor>
-  static bool search_inside_leaf_wrapper(_LeafType* node,
-                                         _GeometryType const& search_range,
-                                         Functor functor)
-  {
-    for (typename _LeafType::value_type& c : *node)
-    {
-      if (traits::is_inside(search_range, c.first) == false)
-      {
-        continue;
-      }
-      if (functor(c))
-      {
-        return true;
-      }
-    }
-    return false;
+    leaf_allocator_type().deallocate(node, 1);
   }
 
 public:
-  template <typename _GeometryType, typename Functor>
-  void search_inside(_GeometryType const& search_range, Functor functor)
-  {
-    search_inside_wrapper(root()->as_node(), _leaf_level, search_range,
-                          functor);
-  }
-  template <typename _GeometryType, typename Functor>
-  void search_overlap(_GeometryType const& search_range, Functor functor)
-  {
-    search_overlap_wrapper(root()->as_node(), _leaf_level, search_range,
-                           functor);
-  }
-  template <typename _GeometryType, typename Functor>
-  void search_inside(_GeometryType const& search_range, Functor functor) const
-  {
-    search_inside_wrapper(root()->as_node(), _leaf_level, search_range,
-                          functor);
-  }
-  template <typename _GeometryType, typename Functor>
-  void search_overlap(_GeometryType const& search_range, Functor functor) const
-  {
-    search_overlap_wrapper(root()->as_node(), _leaf_level, search_range,
-                           functor);
-  }
-
   struct flatten_node_t
   {
-    // offset in global dense buffer
+    /// offset in global dense buffer
     size_type offset;
 
-    // the number of children
+    /// the number of children
     size_type size;
 
-    // parent node index
+    /// parent node index
     size_type parent;
   };
   struct flatten_result_t
   {
-    // leaf node's level
+    /// leaf node's level
     size_type leaf_level;
 
-    // root node index; must be 0
+    /// root node index; must be 0
     size_type root;
 
-    // node data ( include leaf nodes )
+    /// node data ( include leaf nodes )
     std::vector<flatten_node_t> nodes;
 
-    // global dense buffer of children_boundingbox
+    /// global dense buffer of children_boundingbox
     std::vector<geometry_type> children_bound;
-    // global dense buffer of children index
+    /// global dense buffer of children index
     std::vector<size_type> children;
 
-    // real data
+    /// real data
     std::vector<mapped_type> data;
   };
 
@@ -985,6 +961,7 @@ protected:
   }
 
 public:
+  /// flatten the tree into a single dense buffer
   template <bool Move = false>
   flatten_result_t flatten() const
   {
@@ -993,6 +970,111 @@ public:
     res.root = 0;
     flatten_recursive<Move>(res, root(), 0, 0);
     return res;
+  }
+
+  /// flatten the tree into a single dense buffer;
+  /// move the data
+  flatten_result_t flatten_move() const
+  {
+    return flatten<true>();
+  }
+
+protected:
+  template <typename GeometryFilter, typename DataFunctor>
+  bool search_recursive(GeometryFilter& geometry_filter,
+                        DataFunctor& data_functor,
+                        node_base_type const* node,
+                        int level) const
+  {
+    if (level == leaf_level())
+    {
+      for (value_type const& element : *node->as_leaf())
+      {
+        if (data_functor(element))
+        {
+          return true;
+        }
+      }
+    }
+    else
+    {
+      for (typename node_type::value_type const& child : *node->as_node())
+      {
+        switch (geometry_filter(child.first))
+        {
+        case -1:
+          return true;
+        case 1:
+          if (search_recursive(geometry_filter, data_functor, child.second,
+                               level + 1))
+          {
+            return true;
+          }
+        default:;
+        }
+      }
+    }
+    return false;
+  }
+
+  template <typename GeometryFilter, typename DataFunctor>
+  bool search_recursive(GeometryFilter& geometry_filter,
+                        DataFunctor& data_functor,
+                        node_base_type* node,
+                        int level)
+  {
+    if (level == leaf_level())
+    {
+      for (value_type& element : *node->as_leaf())
+      {
+        if (data_functor(element))
+        {
+          return true;
+        }
+      }
+    }
+    else
+    {
+      for (typename node_type::value_type& child : *node->as_node())
+      {
+        switch (geometry_filter(child.first))
+        {
+        case -1:
+          return true;
+        case 1:
+          if (search_recursive(geometry_filter, data_functor, child.second,
+                               level + 1))
+          {
+            return true;
+          }
+        default:;
+        }
+      }
+    }
+    return false;
+  }
+
+public:
+  template <typename GeometryFilter, typename DataFunctor>
+  void search(GeometryFilter&& geometry_filter,
+              DataFunctor&& data_functor) const
+  {
+    search_recursive(geometry_filter, data_functor, root(), 0);
+  }
+
+  template <typename GeometryFilter, typename DataFunctor>
+  void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor)
+  {
+    search_recursive(geometry_filter, data_functor, root(), 0);
+  }
+
+  /// Rebalance the tree.
+  /// This function reinserts all the elements in the tree, so that its bounding
+  /// box distribution is more balanced.
+  void rebalance()
+  {
+    RTree rtree = RTree(begin(), end());
+    *this = std::move(rtree);
   }
 };
 

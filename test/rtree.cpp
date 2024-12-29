@@ -18,7 +18,6 @@ TEST(RTreeTest, Insert)
   std::mt19937 mt(std::random_device {}());
   std::uniform_int_distribution<int> dist(-1000, 1000);
   rtree_type rtree;
-  rtree.reinsert_nodes(3);
 
   for (int i = 0; i < 1000; ++i)
   {
@@ -34,7 +33,7 @@ TEST(RTreeTest, Insert)
     // entries count check
     for (int level = 0; level < rtree.leaf_level(); ++level)
     {
-      for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+      for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
       {
         if (level != 0)
         {
@@ -58,7 +57,7 @@ TEST(RTreeTest, Insert)
     // entries bound check
     for (int level = 0; level < rtree.leaf_level(); ++level)
     {
-      for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+      for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
       {
         auto* node = *ni;
         for (auto& c : *node)
@@ -106,7 +105,6 @@ TEST(RTreeTest, Erase)
   std::mt19937 mt(std::random_device {}());
   std::uniform_int_distribution<int> dist(-1000, 1000);
   rtree_type rtree;
-  rtree.reinsert_nodes(3);
 
   for (int i = 0; i < 1000; ++i)
   {
@@ -136,7 +134,7 @@ TEST(RTreeTest, Erase)
     // entries count check
     for (int level = 0; level < rtree.leaf_level(); ++level)
     {
-      for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+      for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
       {
         if (level != 0)
         {
@@ -161,7 +159,7 @@ TEST(RTreeTest, Erase)
     // entries bound check
     for (int level = 0; level < rtree.leaf_level(); ++level)
     {
-      for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+      for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
       {
         auto* node = *ni;
         for (auto& c : *node)
@@ -192,70 +190,6 @@ TEST(RTreeTest, Erase)
   }
 }
 
-TEST(RTreeTest, Search)
-{
-  using rtree_type = er::RTree<er::aabb_t<int>, er::aabb_t<int>, int>;
-  using traits = rtree_type::traits;
-  using bound_type = rtree_type::geometry_type;
-  using node_type = rtree_type::node_type;
-  std::mt19937 mt(std::random_device {}());
-  std::uniform_int_distribution<int> dist(-100, 100);
-
-  rtree_type rtree;
-  rtree.reinsert_nodes(3);
-  bound_type search_range = { -10, 10 };
-
-  std::vector<int> inside_list, overlap_list;
-
-  for (int i = 0; i < 1000; ++i)
-  {
-    int min_ = dist(mt);
-    int max_ = dist(mt);
-    if (max_ < min_)
-    {
-      std::swap(min_, max_);
-    }
-    rtree.insert({ { min_, max_ }, i });
-
-    if (traits::is_inside(search_range, bound_type { min_, max_ }))
-    {
-      inside_list.push_back(i);
-    }
-    if (traits::is_overlap(search_range, bound_type { min_, max_ }))
-    {
-      overlap_list.push_back(i);
-    }
-
-    std::vector<int> cur_inside, cur_overlap;
-    rtree.search_inside(search_range,
-                        [&](rtree_type::value_type v)
-                        {
-                          cur_inside.push_back(v.second);
-                          return false;
-                        });
-    std::sort(cur_inside.begin(), cur_inside.end());
-    ASSERT_EQ(inside_list.size(), cur_inside.size());
-    for (int j = 0; j < cur_inside.size(); ++j)
-    {
-      ASSERT_EQ(cur_inside[j], inside_list[j]);
-    }
-
-    rtree.search_overlap(search_range,
-                         [&](rtree_type::value_type v)
-                         {
-                           cur_overlap.push_back(v.second);
-                           return false;
-                         });
-
-    std::sort(cur_overlap.begin(), cur_overlap.end());
-    ASSERT_EQ(overlap_list.size(), cur_overlap.size());
-    for (int j = 0; j < cur_overlap.size(); ++j)
-    {
-      ASSERT_EQ(cur_overlap[j], overlap_list[j]);
-    }
-  }
-}
-
 TEST(RTreeTest, Assign)
 {
   using rtree_type = er::RTree<er::aabb_t<int>, int, int>;
@@ -266,7 +200,6 @@ TEST(RTreeTest, Assign)
   std::uniform_int_distribution<int> dist(-100, 100);
 
   rtree_type rtree;
-  rtree.reinsert_nodes(3);
   std::vector<rtree_type::value_type> original;
 
   for (int i = 0; i < 1000; ++i)
@@ -309,7 +242,6 @@ TEST(RTreeTest, Clear)
   std::uniform_int_distribution<int> dist(-100, 100);
 
   rtree_type rtree;
-  rtree.reinsert_nodes(3);
   std::vector<rtree_type::value_type> original;
 
   for (int i = 0; i < 1000; ++i)

@@ -35,25 +35,32 @@ def parse_tree_file( file_path ):
 colors = [ 'k', 'tab:orange', 'tab:blue', 'tab:purple' ]
 linewidths = [ 1.5, 1, 0.5 ]
 
-def plot_tree( tree ):
+def plot_tree( tree, N ):
   leaf_level = len(tree)-1
+  level_offset = 3 - leaf_level
   points = tree[-1]
   Xs = [0] * len(points)
   Ys = [0] * len(points)
   for i, (x, y) in enumerate(points):
     Xs[i] = x
     Ys[i] = y
-  plt.plot( Xs, Ys, '.', label='Input Points', color=colors[leaf_level] )
+  # leaf
+  plt.plot( Xs, Ys, '.', label='Input Points', color=colors[3] )
 
   for level in range(leaf_level-1,-1,-1):
     bounds = tree[level]
     for bi,bound in enumerate(bounds):
       Xs = [ bound[0], bound[2], bound[2], bound[0], bound[0] ]
       Ys = [ bound[1], bound[1], bound[3], bound[3], bound[1] ]
-      plt.plot( Xs, Ys, '-', color=colors[level], linewidth=linewidths[level] )
+      plt.plot( Xs, Ys, '-', color=colors[level_offset+level], linewidth=linewidths[level_offset+level] )
 
+  plt.title(f'N = {N}')
 
-
-tree = parse_tree_file( sys.argv[1] )
-plot_tree( tree )
-plt.show()
+for i in range(1,1001):
+  print(i)
+  plt.cla()
+  plt.clf()
+  plt.cla()
+  tree = parse_tree_file(f"../outs/Point{i}.txt")
+  plot_tree(tree,i)
+  plt.savefig(f"Point{i:04d}.png")

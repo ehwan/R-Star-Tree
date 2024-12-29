@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cassert>
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -14,26 +13,19 @@ namespace rtree
 {
 
 // quadratic split algorithm
-template <typename TreeType>
-struct quadratic_split_t
+struct QuadraticSplit
 {
-  using geometry_type = typename TreeType::geometry_type;
-  using traits = geometry_traits<geometry_type>;
-  using area_type = typename geometry_traits<geometry_type>::area_type;
-  constexpr static area_type LOWEST_AREA
-      = std::numeric_limits<area_type>::lowest();
-
-  constexpr static unsigned int MIN_ENTRIES = TreeType::MIN_ENTRIES;
-  constexpr static unsigned int MAX_ENTRIES = TreeType::MAX_ENTRIES;
-
   template <typename NodeType>
-  NodeType* operator()(NodeType* node,
-                       typename NodeType::value_type new_child,
-                       NodeType* node_pair) const
+  static NodeType* split(NodeType* node,
+                         typename NodeType::value_type new_child,
+                         NodeType* node_pair)
   {
-    assert(node->size() == MAX_ENTRIES);
-    assert(node_pair);
-    assert(node_pair->size() == 0);
+    using geometry_type = typename NodeType::geometry_type;
+    using traits = geometry_traits<geometry_type>;
+
+    EH_RTREE_ASSERT_SILENT(node->size() == NodeType::MAX_ENTRIES);
+    EH_RTREE_ASSERT_SILENT(node_pair);
+    EH_RTREE_ASSERT_SILENT(node_pair->size() == 0);
 
     /*
     QS1. [Pick first entry for each group.]
@@ -65,7 +57,8 @@ struct quadratic_split_t
     */
     {
       int n1 = 0, n2 = 0;
-      area_type max_wasted_area = LOWEST_AREA;
+      typename traits::scalar_type max_wasted_area
+          = std::numeric_limits<typename traits::scalar_type>::lowest();
 
       // choose two nodes that would waste the most area if both were put in the
       // same group for each pair (i,j) such that ( i in *node.child AND j in
@@ -74,10 +67,11 @@ struct quadratic_split_t
       {
         for (int j = i + 1; j < node->size(); ++j)
         {
-          const auto J = traits::merge(node->at(i).first, node->at(j).first);
-          const area_type wasted_area = traits::area(J)
-                                        - traits::area(node->at(i).first)
-                                        - traits::area(node->at(j).first);
+          const typename traits::scalar_type J
+              = helper::enlarged_area(node->at(i).first, node->at(j).first);
+          const typename traits::scalar_type wasted_area
+              = J - helper::area(node->at(i).first)
+                - helper::area(node->at(j).first);
 
           if (wasted_area > max_wasted_area)
           {
@@ -88,10 +82,9 @@ struct quadratic_split_t
           // if same wasted area, choose pair with small intersection area
           else if (wasted_area == max_wasted_area)
           {
-            if (traits::area(
-                    traits::intersection(node->at(i).first, node->at(j).first))
-                < traits::area(traits::intersection(node->at(n1).first,
-                                                    node->at(n2).first)))
+            if (helper::intersection_area(node->at(i).first, node->at(j).first)
+                < helper::intersection_area(node->at(n1).first,
+                                            node->at(n2).first))
             {
               n1 = i;
               n2 = j;
@@ -103,10 +96,11 @@ struct quadratic_split_t
       // for each pair (i,j) such that ( i is new_child AND j in *node.child )
       for (int j = 0; j < node->size(); ++j)
       {
-        const auto J = traits::merge(new_child.first, node->at(j).first);
-        const area_type wasted_area = traits::area(J)
-                                      - traits::area(new_child.first)
-                                      - traits::area(node->at(j).first);
+        const typename traits::scalar_type J
+            = helper::enlarged_area(new_child.first, node->at(j).first);
+        const typename traits::scalar_type wasted_area
+            = J - helper::area(new_child.first)
+              - helper::area(node->at(j).first);
 
         if (wasted_area > max_wasted_area)
         {
@@ -119,10 +113,9 @@ struct quadratic_split_t
         {
           if (n1 == -1)
           {
-            if (traits::area(
-                    traits::intersection(new_child.first, node->at(j).first))
-                < traits::area(
-                    traits::intersection(new_child.first, node->at(n2).first)))
+            if (helper::intersection_area(new_child.first, node->at(j).first)
+                < helper::intersection_area(new_child.first,
+                                            node->at(n2).first))
             {
               n1 = -1;
               n2 = j;
@@ -130,10 +123,9 @@ struct quadratic_split_t
           }
           else
           {
-            if (traits::area(
-                    traits::intersection(new_child.first, node->at(j).first))
-                < traits::area(traits::intersection(node->at(n1).first,
-                                                    node->at(n2).first)))
+            if (helper::intersection_area(new_child.first, node->at(j).first)
+                < helper::intersection_area(node->at(n1).first,
+                                            node->at(n2).first))
             {
               n1 = -1;
               n2 = j;
@@ -173,7 +165,7 @@ struct quadratic_split_t
     geometry_type bound1 = node->at(0).first;
     geometry_type bound2 = node_pair->at(0).first;
 
-    while (count1 + node_pair->size() < MAX_ENTRIES + 1)
+    while (count1 + node_pair->size() < NodeType::MAX_ENTRIES + 1)
     {
       /*
       PN1. [Determine cost of putting each entry in each group.]
@@ -185,12 +177,12 @@ struct quadratic_split_t
       Choose any entry with the maximum difference between d1 and d2.
       */
       const typename NodeType::size_type node_left
-          = MAX_ENTRIES + 1 - (count1 + node_pair->size());
-      if (count1 + node_left == MIN_ENTRIES)
+          = NodeType::MAX_ENTRIES + 1 - (count1 + node_pair->size());
+      if (count1 + node_left == NodeType::MIN_ENTRIES)
       {
         break;
       }
-      else if (node_pair->size() + node_left == MIN_ENTRIES)
+      else if (node_pair->size() + node_left == NodeType::MIN_ENTRIES)
       {
         for (typename NodeType::size_type i = 0; i < node_left; ++i)
         {
@@ -204,16 +196,17 @@ struct quadratic_split_t
       {
         int picked = 0;
         int picked_to = 0;
-        area_type maximum_difference = LOWEST_AREA;
+        typename traits::scalar_type maximum_difference
+            = std::numeric_limits<typename traits::scalar_type>::lowest();
 
         for (typename NodeType::size_type i = count1; i < node->size(); ++i)
         {
-          const area_type d1
-              = traits::area(traits::merge(bound1, node->at(i).first))
-                - traits::area(bound1);
-          const area_type d2
-              = traits::area(traits::merge(bound2, node->at(i).first))
-                - traits::area(bound2);
+          const typename traits::scalar_type d1
+              = helper::enlarged_area(bound1, node->at(i).first)
+                - helper::area(bound1);
+          const typename traits::scalar_type d2
+              = helper::enlarged_area(bound2, node->at(i).first)
+                - helper::area(bound2);
           const auto diff = std::abs(d1 - d2);
 
           if (diff > maximum_difference)
@@ -226,7 +219,7 @@ struct quadratic_split_t
 
         if (picked_to == 0)
         {
-          bound1 = traits::merge(bound1, node->at(picked).first);
+          helper::enlarge_to(bound1, node->at(picked).first);
           if (picked != count1)
           {
             node->swap(count1, picked);
@@ -235,7 +228,7 @@ struct quadratic_split_t
         }
         else
         {
-          bound2 = traits::merge(bound2, node->at(picked).first);
+          helper::enlarge_to(bound2, node->at(picked).first);
           auto picked_data = std::move(node->at(picked));
           node->erase(node->begin() + picked);
           node_pair->insert(std::move(picked_data));

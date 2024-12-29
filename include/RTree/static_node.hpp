@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cassert>
-#include <cstdint>
 #include <iterator>
 #include <utility>
 
@@ -240,6 +238,9 @@ struct static_node_t
   using mapped_type = MappedType;
   using value_type = std::pair<geometry_type, node_base_type*>;
 
+  constexpr static size_type MIN_ENTRIES = MinEntry;
+  constexpr static size_type MAX_ENTRIES = MaxEntry;
+
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
@@ -254,15 +255,15 @@ struct static_node_t
   // add child node with bounding box
   void insert(value_type child)
   {
-    assert(size() < MaxEntry);
+    EH_RTREE_ASSERT_SILENT(size() < MaxEntry);
     child.second->_parent = this;
     child.second->_index_on_parent = size();
     _children.emplace_back(std::move(child));
   }
   void erase(node_base_type* node)
   {
-    assert(node->_parent == this);
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(node->_parent == this);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     if (node->_index_on_parent < size() - 1)
     {
       back().second->_index_on_parent = node->_index_on_parent;
@@ -284,9 +285,9 @@ struct static_node_t
   // swap two different child node (i, j)
   void swap(size_type i, size_type j)
   {
-    assert(i != j);
-    assert(i < size());
-    assert(j < size());
+    EH_RTREE_ASSERT_SILENT(i != j);
+    EH_RTREE_ASSERT_SILENT(i < size());
+    EH_RTREE_ASSERT_SILENT(j < size());
 
     std::swap(at(i), at(j));
     at(i).second->_index_on_parent = i;
@@ -294,7 +295,7 @@ struct static_node_t
   }
   void pop_back()
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     _children.pop_back();
   }
 
@@ -330,12 +331,12 @@ struct static_node_t
 
   value_type& at(size_type i)
   {
-    assert(i < size());
+    EH_RTREE_ASSERT_SILENT(i < size());
     return _children.at(i);
   }
   value_type const& at(size_type i) const
   {
-    assert(i < size());
+    EH_RTREE_ASSERT_SILENT(i < size());
     return _children.at(i);
   }
   value_type& operator[](size_type i)
@@ -348,22 +349,22 @@ struct static_node_t
   }
   value_type& front()
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(0);
   }
   value_type const& front() const
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(0);
   }
   value_type& back()
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(size() - 1);
   }
   value_type const& back() const
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(size() - 1);
   }
 
@@ -379,11 +380,11 @@ struct static_node_t
   // union bouinding box of children
   geometry_type calculate_bound() const
   {
-    assert(empty() == false);
+    EH_RTREE_ASSERT_SILENT(empty() == false);
     geometry_type merged = at(0).first;
     for (size_type i = 1; i < size(); ++i)
     {
-      merged = geometry_traits<geometry_type>::merge(merged, at(i).first);
+      helper::enlarge_to(merged, at(i).first);
     }
     return merged;
   }
@@ -501,6 +502,9 @@ struct static_leaf_node_t
   using mapped_type = MappedType;
   using value_type = std::pair<key_type, mapped_type>;
 
+  constexpr static size_type MIN_ENTRIES = MinEntry;
+  constexpr static size_type MAX_ENTRIES = MaxEntry;
+
   using iterator = value_type*;
   using const_iterator = value_type const*;
 
@@ -515,13 +519,13 @@ struct static_leaf_node_t
   // add child node with bounding box
   void insert(value_type child)
   {
-    assert(size() < MaxEntry);
+    EH_RTREE_ASSERT_SILENT(size() < MaxEntry);
     _children.emplace_back(std::move(child));
   }
   void erase(value_type* pos)
   {
-    assert(size() > 0);
-    assert(std::distance(data(), pos) < size());
+    EH_RTREE_ASSERT_SILENT(size() > 0);
+    EH_RTREE_ASSERT_SILENT(std::distance(data(), pos) < size());
     if (std::distance(data(), pos) < size() - 1)
     {
       *pos = std::move(back());
@@ -537,15 +541,15 @@ struct static_leaf_node_t
   // swap two different child node (i, j)
   void swap(size_type i, size_type j)
   {
-    assert(i != j);
-    assert(i < size());
-    assert(j < size());
+    EH_RTREE_ASSERT_SILENT(i != j);
+    EH_RTREE_ASSERT_SILENT(i < size());
+    EH_RTREE_ASSERT_SILENT(j < size());
 
     std::swap(at(i), at(j));
   }
   void pop_back()
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     _children.pop_back();
   }
 
@@ -581,12 +585,12 @@ struct static_leaf_node_t
 
   value_type& at(size_type i)
   {
-    assert(i < size());
+    EH_RTREE_ASSERT_SILENT(i < size());
     return _children.at(i);
   }
   value_type const& at(size_type i) const
   {
-    assert(i < size());
+    EH_RTREE_ASSERT_SILENT(i < size());
     return _children.at(i);
   }
   value_type& operator[](size_type i)
@@ -599,22 +603,22 @@ struct static_leaf_node_t
   }
   value_type& front()
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(0);
   }
   value_type const& front() const
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(0);
   }
   value_type& back()
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(size() - 1);
   }
   value_type const& back() const
   {
-    assert(size() > 0);
+    EH_RTREE_ASSERT_SILENT(size() > 0);
     return at(size() - 1);
   }
   value_type* data()
@@ -629,11 +633,11 @@ struct static_leaf_node_t
   // union bouinding box of children
   geometry_type calculate_bound() const
   {
-    assert(empty() == false);
+    EH_RTREE_ASSERT_SILENT(empty() == false);
     geometry_type merged = at(0).first;
     for (int i = 1; i < size(); ++i)
     {
-      merged = geometry_traits<geometry_type>::merge(merged, at(i).first);
+      helper::enlarge_to(merged, at(i).first);
     }
     return merged;
   }

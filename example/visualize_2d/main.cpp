@@ -1,6 +1,7 @@
 #include "RTree/aabb.hpp"
 #include <RTree.hpp>
 
+#include <fstream>
 #include <iostream>
 #include <random>
 
@@ -32,6 +33,7 @@ int main(int argc, char** argv)
   rtree_type rtree;
   for (int i = 0; i < N; ++i)
   {
+    std::cout << i << "\n";
     double r = normal_distribute(mt_engine);
     double theta = uniform_distribute(mt_engine);
 
@@ -39,51 +41,51 @@ int main(int argc, char** argv)
     point_type point = { r * std::cos(theta), r * std::sin(theta) };
 
     rtree.insert({ point, i + 1 });
-  }
 
-  // print tree structures to stdout
-  std::ostream& output = std::cout;
+    std::string name = "Point" + std::to_string(i + 1) + ".txt";
+    std::ofstream output(name);
 
-  output << rtree.leaf_level() << "\n";
+    output << rtree.leaf_level() << "\n";
 
-  for (int level = 0; level < rtree.leaf_level(); ++level)
-  {
-    int count = 0;
-    for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+    for (int level = 0; level < rtree.leaf_level(); ++level)
     {
-      rtree_type::node_type* node = *ni;
-      count += node->size();
+      int count = 0;
+      for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
+      {
+        rtree_type::node_type* node = *ni;
+        count += node->size();
+      }
+      output << count;
+
+      for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
+      {
+        rtree_type::node_type* node = *ni;
+
+        for (rtree_type::node_type::value_type& c : *node)
+        {
+          output << " " << c.first.min_[0] << " " << c.first.min_[1];
+          output << " " << c.first.max_[0] << " " << c.first.max_[1];
+        }
+      }
+      output << "\n";
+    }
+    int count = 0;
+    for (auto ni = rtree.leaf_begin(); ni != rtree.leaf_end(); ++ni)
+    {
+      rtree_type::leaf_type* leaf = *ni;
+      count += leaf->size();
     }
     output << count;
-
-    for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+    for (auto ni = rtree.leaf_begin(); ni != rtree.leaf_end(); ++ni)
     {
-      rtree_type::node_type* node = *ni;
-
-      for (rtree_type::node_type::value_type& c : *node)
+      rtree_type::leaf_type* leaf = *ni;
+      for (rtree_type::leaf_type::value_type& c : *leaf)
       {
-        output << " " << c.first.min_[0] << " " << c.first.min_[1];
-        output << " " << c.first.max_[0] << " " << c.first.max_[1];
+        output << " " << c.first[0] << " " << c.first[1];
       }
     }
     output << "\n";
   }
-  int count = 0;
-  for (auto ni = rtree.leaf_begin(); ni != rtree.leaf_end(); ++ni)
-  {
-    rtree_type::leaf_type* leaf = *ni;
-    count += leaf->size();
-  }
-  output << count;
-  for (auto ni = rtree.leaf_begin(); ni != rtree.leaf_end(); ++ni)
-  {
-    rtree_type::leaf_type* leaf = *ni;
-    for (rtree_type::leaf_type::value_type& c : *leaf)
-    {
-      output << " " << c.first[0] << " " << c.first[1];
-    }
-  }
-  output << "\n";
 
   return 0;
 }

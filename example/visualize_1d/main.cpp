@@ -39,14 +39,14 @@ int main(int argc, char** argv)
   for (int level = 0; level < rtree.leaf_level(); ++level)
   {
     int count = 0;
-    for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+    for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
     {
       rtree_type::node_type* node = *ni;
       count += node->size();
     }
     output << count;
 
-    for (auto ni = rtree.begin(level); ni != rtree.end(level); ++ni)
+    for (auto ni = rtree.node_begin(level); ni != rtree.node_end(level); ++ni)
     {
       rtree_type::node_type* node = *ni;
 
