@@ -523,9 +523,9 @@ public:
   RTree(Iterator begin, Iterator end)
   {
     init_root();
-    for (Iterator it = begin; it != end; ++it)
+    for (; begin != end; ++begin)
     {
-      insert(*it);
+      insert(*begin);
     }
   }
 

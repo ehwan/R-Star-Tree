@@ -193,17 +193,26 @@ For type used in `KeyType`, `set_min_point` and `set_max_point` are not required
 ### Querying with `RTree::search()`
 ```cpp
 template <typename GeometryFilter, typename DataFunctor>
-void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor)
+void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor);
 
-template <typename GeometryFilter, typename DataFunctor>
-void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor) const
+template <typename GeometryFilter, typename ConstDataFunctor>
+void search(GeometryFilter&& geometry_filter, ConstDataFunctor&& data_functor) const;
+
+template <typename GeometryFilter, typename ItFunctor>
+void search_iterator(GeometryFilter&& geometry_filter, ItFunctor&& it_functor);
+
+template <typename GeometryFilter, typename ConstItFunctor>
+void search_iterator(GeometryFilter&& geometry_filter, ConstItFunctor&& it_functor) const;
 ```
 - `GeometryFilter`: A callable object that takes a `GeometryType` and returns a integer value. 
     - If the return value is `1`, search will be performed recursively on the children of the node.
     - If the return value is `0`, every child of this node will be ignored.
     - If the return value is `-1`, the search will immediately stop and return out of the `search` function.
-- `DataFunctor`: A callable object that takes a `value_type` and returns boolean value.
-If the return value is `true`, the query will immediately stop and return out of the `search` function.
+- `DataFunctor`: A callable object that takes a `value_type&` (or `value_type const&` ) and returns boolean value.
+  If the return value is `true`, the query will immediately stop and return out of the `search` function.
+- `ItFunctor`: A callable object that takes a `iterator` (or `const_iterator`) and returns boolean value.
+  If the return value is `true`, the query will immediately stop and return out of the `search` function.
+  This is useful when you want to modify the `key` of some data.
 
 ```cpp
 // Example usage of the search function
