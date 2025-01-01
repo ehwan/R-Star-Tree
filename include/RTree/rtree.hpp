@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <type_traits>
@@ -1168,7 +1169,8 @@ public:
   /// box distribution is more balanced.
   void rebalance()
   {
-    RTree rtree = RTree(begin(), end());
+    RTree rtree = RTree(std::make_move_iterator(begin()),
+                        std::make_move_iterator(end()));
     *this = std::move(rtree);
   }
 };

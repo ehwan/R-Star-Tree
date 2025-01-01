@@ -331,6 +331,8 @@ TEST(RTreeTest, MoveOnlyValue)
             << "i: " << i << ", " << "x: " << x << " not exist";
       }
     }
+
+    rtree.rebalance();
     // destruction check
   }
   for (int i = 0; i < 1000; ++i)
