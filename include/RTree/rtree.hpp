@@ -1054,10 +1054,92 @@ protected:
     return false;
   }
 
+  template <typename GeometryFilter, typename ItFunctor>
+  bool search_iterator_recursive(GeometryFilter& geometry_filter,
+                                 ItFunctor& it_functor,
+                                 node_base_type const* node,
+                                 int level) const
+  {
+    if (level == leaf_level())
+    {
+      if (!node->as_leaf()->empty())
+      {
+        for (auto it = const_iterator(&node->as_leaf()->at(0), node->as_leaf());
+             it != const_iterator(); ++it)
+        {
+          if (it_functor(it))
+          {
+            return true;
+          }
+        }
+      }
+    }
+    else
+    {
+      for (typename node_type::value_type const& child : *node->as_node())
+      {
+        switch (geometry_filter(child.first))
+        {
+        case -1:
+          return true;
+        case 1:
+          if (search_recursive(geometry_filter, it_functor, child.second,
+                               level + 1))
+          {
+            return true;
+          }
+        default:;
+        }
+      }
+    }
+    return false;
+  }
+
+  template <typename GeometryFilter, typename ItFunctor>
+  bool search_iterator_recursive(GeometryFilter& geometry_filter,
+                                 ItFunctor& it_functor,
+                                 node_base_type* node,
+                                 int level)
+  {
+    if (level == leaf_level())
+    {
+      if (!node->as_leaf()->empty())
+      {
+        for (auto it = iterator(&node->as_leaf()->at(0), node->as_leaf());
+             it != iterator(); ++it)
+        {
+          if (it_functor(it))
+          {
+            return true;
+          }
+        }
+      }
+    }
+    else
+    {
+      for (typename node_type::value_type& child : *node->as_node())
+      {
+        switch (geometry_filter(child.first))
+        {
+        case -1:
+          return true;
+        case 1:
+          if (search_recursive(geometry_filter, it_functor, child.second,
+                               level + 1))
+          {
+            return true;
+          }
+        default:;
+        }
+      }
+    }
+    return false;
+  }
+
 public:
-  template <typename GeometryFilter, typename DataFunctor>
+  template <typename GeometryFilter, typename ConstDataFunctor>
   void search(GeometryFilter&& geometry_filter,
-              DataFunctor&& data_functor) const
+              ConstDataFunctor&& data_functor) const
   {
     search_recursive(geometry_filter, data_functor, root(), 0);
   }
@@ -1066,6 +1148,19 @@ public:
   void search(GeometryFilter&& geometry_filter, DataFunctor&& data_functor)
   {
     search_recursive(geometry_filter, data_functor, root(), 0);
+  }
+
+  template <typename GeometryFilter, typename ItFunctor>
+  void search_iterator(GeometryFilter&& geometry_filter,
+                       ItFunctor&& it_functor) const
+  {
+    search_iterator_recursive(geometry_filter, it_functor, root(), 0);
+  }
+
+  template <typename GeometryFilter, typename ItFunctor>
+  void search_iterator(GeometryFilter&& geometry_filter, ItFunctor&& it_functor)
+  {
+    search_iterator_recursive(geometry_filter, it_functor, root(), 0);
   }
 
   /// Rebalance the tree.
