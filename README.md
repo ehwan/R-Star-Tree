@@ -122,7 +122,8 @@ class RTree
   | [`root()`](#directly-accessing-node-pointer) | Get the root node of the R-Tree |
   | [`leaf_level()`](#directly-accessing-node-pointer) | Get the level of the leaf nodes in the R-Tree |
   | [`flatten()`, `flatten_move()`](#for-read-only-usage-in-gpu--cuda-opencl-etc-) | Convert the R-Tree structure to a dense linear 1D buffer |
-  | `rebalance()` | Rebalance the bounding box distribution of the R-Tree by reinserting whole data |
+  | [`rebalance()`](#dealing-with-moving-objects) | Rebalance the bounding box distribution of the R-Tree by reinserting whole data |
+  | [`rebound( iterator )`](#dealing-with-moving-objects) | Recalculate the bounding box of given node and broadcast to its parent recursively. |
 
 #### `Config` class
 ```cpp
@@ -337,3 +338,10 @@ struct flatten_node_t
  - `parent`: The index of the parent node in the nodes array.
 
  The children of a node can be retrieved using the offset and size values. For leaf nodes (where level == leaf_level), the children array points to indices in the data array. For non-leaf nodes (where level < leaf_level), the children array points to indices in the nodes array.
+
+ ### Dealing with moving objects
+If you are dealing with moving objects,
+you can use `RTree::rebound( iterator )` function to update the bounding box of the given node.
+This function will recalculate the bounding box of all ancestors of the given node.
+Note that this function will not *rebalance* the R-Tree, so you may need to call `RTree::rebalance()` occasionally.
+`RTree::rebalance()` will reinsert all the data to the new R-Tree, to make the bounding box distribution more balanced.

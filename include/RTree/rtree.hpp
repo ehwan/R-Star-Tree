@@ -1055,9 +1055,9 @@ protected:
     return false;
   }
 
-  template <typename GeometryFilter, typename ItFunctor>
+  template <typename GeometryFilter, typename ConstItFunctor>
   bool search_iterator_recursive(GeometryFilter& geometry_filter,
-                                 ItFunctor& it_functor,
+                                 ConstItFunctor& it_functor,
                                  node_base_type const* node,
                                  int level) const
   {
