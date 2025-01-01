@@ -40,7 +40,7 @@ int main()
 
   rtree_type rtree;
 
-  // insert 100 arithmetic sequence of points
+  // insert 50 arithmetic sequence of points
   for (int i = 0; i < 50; ++i)
   {
     double point = i;
@@ -52,8 +52,7 @@ int main()
   // iterates over all values in the tree
   for (value_type value : rtree)
   {
-    std::cout << "Value Inserted: [" << value.first << ", " << value.second
-              << "]\n";
+    std::cout << "Value Inserted: [" << value.first << ", " << value.second << "]\n";
   }
 
   auto geometry_filter = [](aabb_type const& bound) -> int
@@ -77,6 +76,16 @@ int main()
 ## Step-by-Step Guide
 ### Installation
 Header-Only library, just include `RTree.hpp` in your project.
+
+### Namespace
+Every class and functions are under `eh::rtree` namespace.
+```cpp
+namespace eh { namespace rtree {
+  ...
+}}
+```
+
+
 ### `RTree` class
 ```cpp
 template <typename GeometryType,
